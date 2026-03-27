@@ -1,5 +1,11 @@
 import { motion } from "framer-motion"
 import type { BowlerEntry } from "@/types/cricket"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip"
 
 const rowVariants = {
   hidden: { opacity: 0, x: -8 },
@@ -26,21 +32,35 @@ function fmtEco(eco: number): string {
   return isFinite(eco) && eco > 0 ? eco.toFixed(2) : "0.00"
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function StatHeader({ label, tip }: { label: string; tip: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="cursor-help border-b border-dotted border-muted-foreground/40" />}>
+        {label}
+      </TooltipTrigger>
+      <TooltipContent>{tip}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 // ─── BowlingCard ──────────────────────────────────────────────────────────────
 
 export function BowlingCard({ bowlingCard }: BowlingCardProps) {
   return (
+    <TooltipProvider>
     <div className="w-full overflow-x-auto">
       <table className="w-full text-xs min-w-[300px]">
         <thead>
           <tr className="border-b border-border">
             <th className="text-left py-1.5 px-2 text-muted-foreground font-medium w-full">Bowler</th>
-            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">O</th>
-            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">M</th>
-            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">R</th>
-            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">W</th>
-            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">Eco</th>
-            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">Dots</th>
+            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium"><StatHeader label="O" tip="Overs bowled" /></th>
+            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium"><StatHeader label="M" tip="Maidens — overs with no runs" /></th>
+            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium"><StatHeader label="R" tip="Runs conceded" /></th>
+            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium"><StatHeader label="W" tip="Wickets taken" /></th>
+            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium"><StatHeader label="Eco" tip="Economy — runs conceded per over" /></th>
+            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium"><StatHeader label="Dots" tip="Dot balls — deliveries with no run scored" /></th>
           </tr>
         </thead>
         <tbody>
@@ -71,5 +91,6 @@ export function BowlingCard({ bowlingCard }: BowlingCardProps) {
         </tbody>
       </table>
     </div>
+    </TooltipProvider>
   )
 }

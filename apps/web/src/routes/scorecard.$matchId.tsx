@@ -213,7 +213,10 @@ function ChartsSection({ match }: { match: Match }) {
       {open && (
         <div className="px-4 pb-4 space-y-6 border-t border-border">
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2 mt-3">Manhattan Chart</p>
+            <div className="mt-3 mb-2">
+              <p className="text-xs font-medium text-foreground">Manhattan Chart</p>
+              <p className="text-[10px] text-muted-foreground">Runs per over — hover a bar for details</p>
+            </div>
             <ManhattanChart
               innings={mhData1}
               innings2={mhData2}
@@ -224,7 +227,10 @@ function ChartsSection({ match }: { match: Match }) {
           </div>
 
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">Worm Graph</p>
+            <div className="mb-2">
+              <p className="text-xs font-medium text-foreground">Worm Graph</p>
+              <p className="text-[10px] text-muted-foreground">Cumulative runs — shows scoring momentum over time</p>
+            </div>
             <WormGraph
               innings1Balls={inn1.ballLog}
               innings2Balls={inn2?.ballLog}
@@ -237,7 +243,10 @@ function ChartsSection({ match }: { match: Match }) {
 
           {inn2 && target2 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Run Rate (2nd Innings)</p>
+              <div className="mb-2">
+                <p className="text-xs font-medium text-foreground">Run Rate (2nd Innings)</p>
+                <p className="text-[10px] text-muted-foreground">CRR vs RRR — hover for over-by-over breakdown</p>
+              </div>
               <RunRateGraph
                 balls={inn2.ballLog}
                 target={target2}

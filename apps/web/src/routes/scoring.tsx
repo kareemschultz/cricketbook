@@ -102,6 +102,12 @@ function ScoringPage() {
   const [lbPickerOpen, setLbPickerOpen] = useState(false)
   const [otPickerOpen, setOtPickerOpen] = useState(false)
   const [scoreFlash, setScoreFlash] = useState<"boundary" | "six" | "wicket" | null>(null)
+  const [flashKey, setFlashKey] = useState(0)
+
+  function triggerFlash(type: "boundary" | "six" | "wicket") {
+    setFlashKey((k) => k + 1)
+    setScoreFlash(type)
+  }
 
   // Redirect if no live match
   useEffect(() => {
@@ -274,8 +280,8 @@ function ScoringPage() {
         })
       )
       await recordBall(ball)
-      if (runs === 4) setScoreFlash("boundary")
-      else if (runs === 6) setScoreFlash("six")
+      if (runs === 4) triggerFlash("boundary")
+      else if (runs === 6) triggerFlash("six")
       checkPostBall()
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -356,7 +362,7 @@ function ScoringPage() {
     )
     ball.overthrows = totalRuns
     await recordBall(ball)
-    setScoreFlash("boundary")
+    triggerFlash("boundary")
     checkPostBall()
   }
 
@@ -397,7 +403,7 @@ function ScoringPage() {
       })
     )
     await recordBall(ball)
-    setScoreFlash("wicket")
+    triggerFlash("wicket")
 
     // After recording, check if innings is done
     const latestState = useScoringStore.getState()
@@ -661,19 +667,34 @@ function ScoringPage() {
       <AnimatePresence>
         {scoreFlash && (
           <motion.div
-            key={scoreFlash}
+            key={flashKey}
             className={cn(
-              "fixed inset-0 z-[100] pointer-events-none",
-              scoreFlash === "boundary" && "bg-emerald-500/20",
-              scoreFlash === "six" && "bg-amber-500/20",
-              scoreFlash === "wicket" && "bg-red-500/20"
+              "fixed inset-0 z-[100] pointer-events-none flex items-center justify-center",
+              scoreFlash === "boundary" && "bg-emerald-500/15",
+              scoreFlash === "six" && "bg-amber-500/15",
+              scoreFlash === "wicket" && "bg-red-500/15"
             )}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            onAnimationComplete={() => setTimeout(() => setScoreFlash(null), 100)}
-          />
+            transition={{ duration: 0.12 }}
+            onAnimationComplete={() => setTimeout(() => setScoreFlash(null), 350)}
+          >
+            <motion.span
+              className={cn(
+                "text-7xl font-black tracking-tighter select-none drop-shadow-lg",
+                scoreFlash === "boundary" && "text-emerald-400",
+                scoreFlash === "six" && "text-amber-400",
+                scoreFlash === "wicket" && "text-red-400"
+              )}
+              initial={{ scale: 0.4, opacity: 0, y: 20 }}
+              animate={{ scale: 1.1, opacity: 1, y: 0 }}
+              exit={{ scale: 1.4, opacity: 0, y: -10 }}
+              transition={{ type: "spring", stiffness: 500, damping: 18, duration: 0.3 }}
+            >
+              {scoreFlash === "boundary" ? "4!" : scoreFlash === "six" ? "6!" : "W!"}
+            </motion.span>
+          </motion.div>
         )}
       </AnimatePresence>
 

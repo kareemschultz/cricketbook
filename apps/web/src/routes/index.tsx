@@ -218,7 +218,26 @@ function HomePage() {
   })
 
   return (
-    <div className="min-h-full bg-background">
+    <div className="min-h-full bg-background relative overflow-hidden">
+      {/* Animated background orbs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
+        <motion.div
+          className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-primary/5"
+          animate={{ scale: [1, 1.15, 1], x: [0, 8, 0], y: [0, 12, 0] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute top-1/3 -left-24 w-48 h-48 rounded-full bg-blue-500/4"
+          animate={{ scale: [1, 1.1, 1], x: [0, -6, 0], y: [0, -10, 0] }}
+          transition={{ duration: 11, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        />
+        <motion.div
+          className="absolute bottom-10 right-4 w-32 h-32 rounded-full bg-violet-500/5"
+          animate={{ scale: [1, 1.2, 1], y: [0, -8, 0] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        />
+      </div>
+
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">

@@ -1,5 +1,11 @@
 import { motion } from "framer-motion"
 import type { BatsmanEntry, ExtrasBreakdown } from "@/types/cricket"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip"
 
 const rowVariants = {
   hidden: { opacity: 0, x: -8 },
@@ -49,19 +55,31 @@ function getRoleSuffix(playerId: string, captainId?: string, wicketKeeperId?: st
   return ""
 }
 
+function StatHeader({ label, tip }: { label: string; tip: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="cursor-help border-b border-dotted border-muted-foreground/40" />}>
+        {label}
+      </TooltipTrigger>
+      <TooltipContent>{tip}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 export function BattingCard({ battingCard, extras, totalRuns, totalWickets, oversStr, captainId, wicketKeeperId }: BattingCardProps) {
   return (
+    <TooltipProvider>
     <div className="w-full overflow-x-auto">
       <table className="w-full text-xs min-w-[340px]">
         <thead>
           <tr className="border-b border-border">
             <th className="text-left py-1.5 px-2 text-muted-foreground font-medium w-full">Batsman</th>
             <th className="text-left py-1.5 px-2 text-muted-foreground font-medium whitespace-nowrap">Dismissal</th>
-            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">R</th>
-            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">B</th>
-            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">4s</th>
-            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">6s</th>
-            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">SR</th>
+            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium"><StatHeader label="R" tip="Runs scored" /></th>
+            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium"><StatHeader label="B" tip="Balls faced" /></th>
+            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium"><StatHeader label="4s" tip="Boundaries (4 runs)" /></th>
+            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium"><StatHeader label="6s" tip="Sixes (6 runs)" /></th>
+            <th className="text-right py-1.5 px-2 text-muted-foreground font-medium"><StatHeader label="SR" tip="Strike Rate — runs per 100 balls" /></th>
           </tr>
         </thead>
         <tbody>
@@ -118,5 +136,6 @@ export function BattingCard({ battingCard, extras, totalRuns, totalWickets, over
         </tbody>
       </table>
     </div>
+    </TooltipProvider>
   )
 }

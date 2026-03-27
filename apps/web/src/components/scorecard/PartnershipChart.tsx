@@ -1,3 +1,4 @@
+import { motion } from "framer-motion"
 import type { Partnership } from "@/types/cricket"
 import { db } from "@/db/index"
 import { useLiveQuery } from "dexie-react-hooks"
@@ -12,7 +13,6 @@ interface PartnershipChartProps {
 // ─── PartnershipChart ─────────────────────────────────────────────────────────
 
 export function PartnershipChart({ partnerships, totalRuns }: PartnershipChartProps) {
-  // Look up player names from Dexie
   const playerIds = [
     ...new Set(partnerships.flatMap((p) => [p.batsman1Id, p.batsman2Id])),
   ]
@@ -35,7 +35,7 @@ export function PartnershipChart({ partnerships, totalRuns }: PartnershipChartPr
         Partnerships
       </p>
 
-      {partnerships.map((p) => {
+      {partnerships.map((p, index) => {
         const pct = totalRuns > 0 ? (p.runs / totalRuns) * 100 : 0
         const barPct = (p.runs / maxRuns) * 100
         const name1 = getName(p.batsman1Id)
@@ -55,11 +55,13 @@ export function PartnershipChart({ partnerships, totalRuns }: PartnershipChartPr
               </div>
             </div>
 
-            {/* Bar */}
+            {/* Animated bar */}
             <div className="h-2.5 bg-muted/40 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary/70 transition-all duration-300"
-                style={{ width: `${barPct}%` }}
+              <motion.div
+                className="h-full rounded-full bg-primary/70"
+                initial={{ width: "0%" }}
+                animate={{ width: `${barPct}%` }}
+                transition={{ delay: index * 0.08, duration: 0.6, ease: "easeOut" }}
               />
             </div>
 

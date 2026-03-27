@@ -38,13 +38,26 @@ function BallCircle({ token, ball }: BallCircleProps & { ball?: Ball }) {
     ? styles.OT
     : styles[token] ?? "bg-muted/50 border-border text-foreground/80 font-medium"
 
+  const tokenTitle: Record<string, string> = {
+    W: "Wicket",
+    "4": "Boundary — 4 runs",
+    "6": "Six — 6 runs",
+    Wd: "Wide",
+    NB: "No Ball",
+    "•": "Dot ball — no run",
+    OT: `${ball?.runs ?? 0} runs (overthrow)`,
+  }
+  const titleText = isOT
+    ? tokenTitle.OT
+    : tokenTitle[token] ?? `${token} run${token === "1" ? "" : "s"}`
+
   return (
     <div
       className={cn(
         "size-8 rounded-full border flex items-center justify-center text-[11px] shrink-0 select-none",
         cls
       )}
-      title={isOT ? `${ball?.runs} runs (overthrow)` : undefined}
+      title={titleText}
     >
       {token}
     </div>

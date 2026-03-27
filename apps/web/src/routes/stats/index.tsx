@@ -62,12 +62,12 @@ function RunScorersTable({
           <tr className="border-b border-border">
             <th className="text-left py-2 px-2 text-muted-foreground font-medium w-6">#</th>
             <th className="text-left py-2 px-2 text-muted-foreground font-medium">Player</th>
-            <th className="text-right py-2 px-2 text-muted-foreground font-medium">M</th>
-            <th className="text-right py-2 px-2 text-muted-foreground font-medium">Inn</th>
+            <th title="Matches" className="text-right py-2 px-2 text-muted-foreground font-medium cursor-help">M</th>
+            <th title="Innings" className="text-right py-2 px-2 text-muted-foreground font-medium cursor-help">Inn</th>
             <th className="text-right py-2 px-2 text-muted-foreground font-medium">Runs</th>
-            <th className="text-right py-2 px-2 text-muted-foreground font-medium">HS</th>
-            <th className="text-right py-2 px-2 text-muted-foreground font-medium">Avg</th>
-            <th className="text-right py-2 px-2 text-muted-foreground font-medium">SR</th>
+            <th title="Highest Score" className="text-right py-2 px-2 text-muted-foreground font-medium cursor-help">HS</th>
+            <th title="Batting Average — runs per dismissal" className="text-right py-2 px-2 text-muted-foreground font-medium cursor-help">Avg</th>
+            <th title="Strike Rate — runs per 100 balls" className="text-right py-2 px-2 text-muted-foreground font-medium cursor-help">SR</th>
           </tr>
         </thead>
         <tbody>
@@ -132,12 +132,12 @@ function WicketTakersTable({
           <tr className="border-b border-border">
             <th className="text-left py-2 px-2 text-muted-foreground font-medium w-6">#</th>
             <th className="text-left py-2 px-2 text-muted-foreground font-medium">Player</th>
-            <th className="text-right py-2 px-2 text-muted-foreground font-medium">M</th>
+            <th title="Matches" className="text-right py-2 px-2 text-muted-foreground font-medium cursor-help">M</th>
             <th className="text-right py-2 px-2 text-muted-foreground font-medium">Wkts</th>
             <th className="text-right py-2 px-2 text-muted-foreground font-medium">Overs</th>
-            <th className="text-right py-2 px-2 text-muted-foreground font-medium">Avg</th>
-            <th className="text-right py-2 px-2 text-muted-foreground font-medium">Eco</th>
-            <th className="text-right py-2 px-2 text-muted-foreground font-medium">Best</th>
+            <th title="Bowling Average — runs per wicket" className="text-right py-2 px-2 text-muted-foreground font-medium cursor-help">Avg</th>
+            <th title="Economy Rate — runs conceded per over" className="text-right py-2 px-2 text-muted-foreground font-medium cursor-help">Eco</th>
+            <th title="Best bowling figures in a single innings" className="text-right py-2 px-2 text-muted-foreground font-medium cursor-help">Best</th>
           </tr>
         </thead>
         <tbody>
