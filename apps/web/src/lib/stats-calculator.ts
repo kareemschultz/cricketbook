@@ -21,8 +21,22 @@ export function computeNRR(
   runsAgainst: number,
   oversAgainst: number
 ): number {
-  if (oversFor <= 0 || oversAgainst <= 0) return 0
-  return runsFor / oversFor - runsAgainst / oversAgainst
+  const oversForInBalls = oversToBalls(oversFor)
+  const oversAgainstInBalls = oversToBalls(oversAgainst)
+
+  if (oversForInBalls <= 0 || oversAgainstInBalls <= 0) return 0
+
+  const oversForTrue = oversForInBalls / 6
+  const oversAgainstTrue = oversAgainstInBalls / 6
+
+  return runsFor / oversForTrue - runsAgainst / oversAgainstTrue
+}
+
+function oversToBalls(overs: number): number {
+  if (overs <= 0) return 0
+  const wholeOvers = Math.trunc(overs)
+  const ballsPart = Math.max(0, Math.min(5, Math.round((overs - wholeOvers) * 10)))
+  return wholeOvers * 6 + ballsPart
 }
 
 // ─── Bowling figure comparison ────────────────────────────────────────────────

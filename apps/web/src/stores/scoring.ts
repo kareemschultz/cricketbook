@@ -220,11 +220,10 @@ function rederiveStateFromInnings(
   let lastOverSummary = ""
 
   if (lastOverComplete) {
-    // The last over is done — find previous over for summary, current overBalls is empty
-    const prevOverNum = lastOverNum - 1
-    if (prevOverNum >= 0) {
-      const prevBalls = ballLog.filter((b) => b.overNumber === prevOverNum)
-      lastOverSummary = buildOverSummary(prevBalls)
+    // The last over is done — summarize the completed over, current overBalls is empty
+    const completedBalls = ballLog.filter((b) => b.overNumber === lastOverNum)
+    if (completedBalls.length > 0) {
+      lastOverSummary = buildOverSummary(completedBalls)
     }
     overBalls = []
   } else {
