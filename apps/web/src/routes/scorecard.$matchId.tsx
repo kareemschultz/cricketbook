@@ -348,7 +348,7 @@ function ScorecardPage() {
         </div>
       </div>
 
-      <div className="px-4 py-4 space-y-4 pb-8" ref={scorecardRef}>
+      <div id="scorecard-capture" className="px-4 py-4 space-y-4 pb-8" ref={scorecardRef}>
         {/* Result banner */}
         {match.result && (
           <div

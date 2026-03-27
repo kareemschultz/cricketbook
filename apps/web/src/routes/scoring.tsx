@@ -711,11 +711,11 @@ function ScoringPage() {
       {/* ── Bowler card ── */}
       {currentBowler ? (
         <BowlerCard bowler={currentBowler} />
-      ) : (
+      ) : !currentBowlerId ? (
         <div className="px-3 py-1.5 border-b border-border/50 text-xs text-muted-foreground italic bg-muted/10">
           Tap "New Over" to select a bowler
         </div>
-      )}
+      ) : null}
 
       {/* ── Over display ── */}
       <OverDisplay balls={overBalls} lastOverSummary={lastOverSummary} />

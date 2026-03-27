@@ -1,9 +1,10 @@
-import { createFileRoute, useParams } from "@tanstack/react-router"
+import { createFileRoute, useParams, useNavigate } from "@tanstack/react-router"
 import { useLiveQuery } from "dexie-react-hooks"
-import { ArrowLeft, Trophy, Users, Plus } from "lucide-react"
+import { ArrowLeft, Trophy, Users, Plus, Calendar, ExternalLink, Play } from "lucide-react"
 import { useState } from "react"
+import { format } from "date-fns"
 import { db } from "@/db/index"
-import type { Tournament, Team } from "@/types/cricket"
+import type { Tournament, Team, TournamentFixture } from "@/types/cricket"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
@@ -28,6 +29,18 @@ export const Route = createFileRoute("/tournaments/$tournamentId")({
 function statusColor(status: Tournament["status"]): string {
   if (status === "live") return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
   if (status === "completed") return "bg-muted text-muted-foreground border-border"
+  return "bg-blue-500/20 text-blue-400 border-blue-500/30"
+}
+
+function fixtureStatusLabel(fixture: TournamentFixture): "Completed" | "Live" | "Upcoming" {
+  if (fixture.result !== null) return "Completed"
+  if (fixture.matchId) return "Live"
+  return "Upcoming"
+}
+
+function fixtureStatusClass(label: "Completed" | "Live" | "Upcoming"): string {
+  if (label === "Completed") return "bg-muted text-muted-foreground border-border"
+  if (label === "Live") return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
   return "bg-blue-500/20 text-blue-400 border-blue-500/30"
 }
 
@@ -101,7 +114,19 @@ function AddTeamsDialog({
 
 function TournamentDetailPage() {
   const { tournamentId } = useParams({ from: "/tournaments/$tournamentId" })
+  const navigate = useNavigate()
   const [showAddTeams, setShowAddTeams] = useState(false)
+
+  async function handleScheduledDateChange(fixtureId: string, dateValue: string) {
+    const tournament = await db.tournaments.get(tournamentId)
+    if (!tournament) return
+    const updatedFixtures = tournament.fixtures.map((f) =>
+      f.id === fixtureId
+        ? { ...f, scheduledDate: dateValue ? new Date(dateValue) : undefined }
+        : f
+    )
+    await db.tournaments.update(tournamentId, { fixtures: updatedFixtures })
+  }
 
   const tournament = useLiveQuery(() => db.tournaments.get(tournamentId), [tournamentId])
 
@@ -224,32 +249,85 @@ function TournamentDetailPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {tournament.fixtures.map((fixture) => {
                   const t1 = teamMap?.[fixture.team1Id] ?? "Team 1"
                   const t2 = teamMap?.[fixture.team2Id] ?? "Team 2"
                   const matchResult = fixture.matchId ? fixtureMatches?.[fixture.matchId] : undefined
+                  const statusLabel = fixtureStatusLabel(fixture)
+                  const scheduledDateValue = fixture.scheduledDate
+                    ? format(new Date(fixture.scheduledDate), "yyyy-MM-dd")
+                    : ""
+                  const isCompleted = statusLabel === "Completed"
                   return (
                     <div
                       key={fixture.id}
-                      className="flex items-center gap-2 py-2 border-b border-border/40 last:border-0"
+                      className="rounded-lg border border-border/60 bg-card/50 p-3 space-y-2"
                     >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium">{t1} vs {t2}</p>
-                        {matchResult?.result && (
-                          <p className="text-[10px] text-primary mt-0.5">{matchResult.result}</p>
+                      {/* Top row: matchup + status badge */}
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold leading-tight">
+                          {t1} <span className="text-muted-foreground font-normal">vs</span> {t2}
+                        </p>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-1.5 py-0 shrink-0 ${fixtureStatusClass(statusLabel)}`}
+                        >
+                          {statusLabel}
+                        </Badge>
+                      </div>
+
+                      {/* Result text if completed */}
+                      {matchResult?.result && (
+                        <p className="text-[11px] text-primary">{matchResult.result}</p>
+                      )}
+
+                      {/* Scheduled date row */}
+                      <div className="flex items-center gap-2">
+                        <Calendar className="size-3.5 text-muted-foreground shrink-0" />
+                        <input
+                          type="date"
+                          value={scheduledDateValue}
+                          onChange={(e) => handleScheduledDateChange(fixture.id, e.target.value)}
+                          disabled={isCompleted}
+                          className="text-xs bg-transparent border-0 p-0 text-foreground disabled:text-muted-foreground focus:outline-none focus:ring-0 cursor-pointer disabled:cursor-default"
+                          aria-label="Scheduled date"
+                        />
+                        {!scheduledDateValue && !isCompleted && (
+                          <span className="text-[11px] text-muted-foreground">Set date</span>
                         )}
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] px-1.5 py-0 shrink-0 ${
-                          fixture.result
-                            ? "bg-muted text-muted-foreground border-border"
-                            : "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                        }`}
-                      >
-                        {fixture.result ? "Done" : "Pending"}
-                      </Badge>
+
+                      {/* Action buttons */}
+                      {(fixture.matchId || (!isCompleted)) && (
+                        <div className="flex gap-2 pt-0.5">
+                          {fixture.matchId ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1"
+                              onClick={() =>
+                                navigate({
+                                  to: "/scorecard/$matchId",
+                                  params: { matchId: fixture.matchId! },
+                                })
+                              }
+                            >
+                              <ExternalLink className="size-3" />
+                              View Scorecard
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => navigate({ to: "/new-match" })}
+                            >
+                              <Play className="size-3" />
+                              Start Match
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })}

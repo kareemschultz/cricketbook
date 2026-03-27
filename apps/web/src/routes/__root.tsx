@@ -1,6 +1,7 @@
 import { createRootRoute, Link, Outlet, useRouterState } from "@tanstack/react-router"
 import { Home, Activity, Clock, BarChart2, Users } from "lucide-react"
 import { useLiveQuery } from "dexie-react-hooks"
+import { AnimatePresence, motion } from "framer-motion"
 import { db } from "@/db/index"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -82,10 +83,22 @@ function BottomNav() {
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 
 function RootLayout() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+
   return (
     <div className="flex flex-col h-dvh bg-background">
       <main className="flex-1 overflow-y-auto pb-safe">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
       <BottomNav />
     </div>
