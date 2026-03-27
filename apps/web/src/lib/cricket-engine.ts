@@ -1,19 +1,15 @@
 import { nanoid } from "nanoid"
 import type {
   Ball,
-  BatsmanEntry,
   BowlerEntry,
   Innings,
   MatchRules,
   DismissalType,
   ExtraType,
-  FallOfWicket,
   Partnership,
   ExtrasBreakdown,
 } from "@/types/cricket"
 import {
-  WICKET_DISMISSALS,
-  FREE_HIT_DISMISSALS,
   BOWLER_CREDITED,
 } from "@/types/cricket"
 
@@ -136,7 +132,7 @@ export function getOversBowledByPlayer(ballLog: Ball[], ballsPerOver: number): R
     completedBalls[ball.bowlerId].overs.add(ball.overNumber)
   }
   const result: Record<string, number> = {}
-  for (const [bowlerId, data] of Object.entries(completedBalls)) {
+  for (const [bowlerId] of Object.entries(completedBalls)) {
     // Count only fully completed overs
     const legalByOver: Record<number, number> = {}
     for (const ball of ballLog.filter((b) => b.bowlerId === bowlerId && b.isLegal)) {
@@ -346,8 +342,6 @@ export function computeBowlerEntry(
   const wickets = myBalls.filter(
     (b) => b.isWicket && b.dismissalType && BOWLER_CREDITED.includes(b.dismissalType)
   ).length
-  const overs = completedOvers + (remainderBalls > 0 ? remainderBalls / 10 : 0) // display value
-
   return {
     playerId,
     playerName,
@@ -381,7 +375,7 @@ export function isTied(team1Runs: number, team2Runs: number): boolean {
 
 export function buildResultString(
   winnerName: string,
-  loserName: string,
+  _loserName: string,
   winnerBattedFirst: boolean,
   winnerRuns: number,
   loserRuns: number,

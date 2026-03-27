@@ -73,7 +73,6 @@ export function buildTextScorecard(match: Match, teamNames: Record<string, strin
 
   for (const innings of match.innings) {
     const battingTeamName = teamNames[innings.battingTeamId] ?? innings.battingTeamId
-    const bowlingTeamName = teamNames[innings.bowlingTeamId] ?? innings.bowlingTeamId
     lines.push(formatInningsText(innings, battingTeamName, match.rules.ballsPerOver))
     lines.push("")
   }

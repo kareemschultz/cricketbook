@@ -94,7 +94,7 @@ export async function getPlayerBattingStats(
   playerId: string,
   format: CricketFormat | "ALL" = "ALL"
 ): Promise<PlayerBattingStats | undefined> {
-  return db.battingStats.where("[playerId+format]").equals([playerId, format]).first() as
+  return (await db.battingStats.where("[playerId+format]").equals([playerId, format]).first()) as
     | PlayerBattingStats
     | undefined
 }
@@ -103,7 +103,7 @@ export async function getPlayerBowlingStats(
   playerId: string,
   format: CricketFormat | "ALL" = "ALL"
 ): Promise<PlayerBowlingStats | undefined> {
-  return db.bowlingStats.where("[playerId+format]").equals([playerId, format]).first() as
+  return (await db.bowlingStats.where("[playerId+format]").equals([playerId, format]).first()) as
     | PlayerBowlingStats
     | undefined
 }
@@ -114,7 +114,7 @@ export async function getTopBatsmen(
 ): Promise<PlayerBattingStats[]> {
   let query = db.battingStats.orderBy("runs").reverse()
   if (format !== "ALL") {
-    query = db.battingStats.where("format").equals(format).and((s) => true) as typeof query
+    query = db.battingStats.where("format").equals(format).and((_s) => true) as typeof query
   }
   const all = (await query.toArray()) as PlayerBattingStats[]
   const filtered = format === "ALL" ? all.filter((s) => s.format === "ALL") : all

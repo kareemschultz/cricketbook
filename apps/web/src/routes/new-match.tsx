@@ -803,8 +803,8 @@ interface Step5Props {
 }
 
 function Step5Openers({
-  battingTeamId,
-  bowlingTeamId,
+  battingTeamId: _battingTeamId,
+  bowlingTeamId: _bowlingTeamId,
   battingTeamName,
   bowlingTeamName,
   battingXI,

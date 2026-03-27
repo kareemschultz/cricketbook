@@ -317,16 +317,18 @@ function TeamCard({ team, playerCount, onEdit, onDelete }: TeamCardProps) {
 
           {/* Kebab menu */}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 shrink-0"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreVertical className="size-4" />
-                <span className="sr-only">Team actions</span>
-              </Button>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              }
+            >
+              <MoreVertical className="size-4" />
+              <span className="sr-only">Team actions</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
@@ -376,7 +378,7 @@ function TeamsPage() {
       counts[p.teamId] = (counts[p.teamId] ?? 0) + 1
     }
     return counts
-  }, [], {})
+  }, [], {} as Record<string, number>)
 
   async function handleDeleteClick(team: Team) {
     const matchCount = await db.matches

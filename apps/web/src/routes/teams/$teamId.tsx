@@ -142,13 +142,13 @@ function PlayerRow({ player, onDelete }: PlayerRowProps) {
     await db.players.update(player.id, { name })
   }
 
-  async function handleRoleChange(value: string) {
-    const role = value === "none" ? undefined : (value as PlayerRole)
+  async function handleRoleChange(value: string | null) {
+    const role = !value || value === "none" ? undefined : (value as PlayerRole)
     await db.players.update(player.id, { role })
   }
 
-  async function handleBattingStyleChange(value: string) {
-    const style = value === "none" ? undefined : (value as BattingStyle)
+  async function handleBattingStyleChange(value: string | null) {
+    const style = !value || value === "none" ? undefined : (value as BattingStyle)
     await db.players.update(player.id, { battingStyle: style })
   }
 

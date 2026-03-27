@@ -59,7 +59,7 @@ export function WicketDialog({
   onConfirm,
   striker,
   nonStriker,
-  bowler,
+  bowler: _bowler,
   allPlayersInField,
   isFreeHit,
 }: WicketDialogProps) {

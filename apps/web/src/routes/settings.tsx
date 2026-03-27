@@ -113,12 +113,7 @@ function SettingsPage() {
         const data = JSON.parse(text)
         await db.transaction(
           "rw",
-          db.teams,
-          db.players,
-          db.matches,
-          db.tournaments,
-          db.battingStats,
-          db.bowlingStats,
+          [db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats],
           async () => {
             if (data.teams?.length) await db.teams.bulkPut(data.teams)
             if (data.players?.length) await db.players.bulkPut(data.players)
@@ -144,12 +139,7 @@ function SettingsPage() {
   async function handleClearData() {
     await db.transaction(
       "rw",
-      db.teams,
-      db.players,
-      db.matches,
-      db.tournaments,
-      db.battingStats,
-      db.bowlingStats,
+      [db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats],
       async () => {
         await Promise.all([
           db.teams.clear(),
@@ -395,14 +385,16 @@ function SettingsPage() {
             <Separator className="my-2" />
 
             <AlertDialog open={clearConfirm} onOpenChange={setClearConfirm}>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="size-4" />
-                  Clear all data
-                </Button>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
+                  />
+                }
+              >
+                <Trash2 className="size-4" />
+                Clear all data
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>

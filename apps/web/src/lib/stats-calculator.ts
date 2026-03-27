@@ -313,7 +313,7 @@ export async function updatePlayerStatsFromMatch(match: Match): Promise<void> {
           current.id = id
         }
 
-        battingUpdates.set(id, mergeBattingEntry(current, entry, isNewMatch))
+        battingUpdates.set(id, { ...mergeBattingEntry(current, entry, isNewMatch), id })
       }
     }
   }
@@ -361,7 +361,7 @@ export async function updatePlayerStatsFromMatch(match: Match): Promise<void> {
 
         bowlingUpdates.set(
           id,
-          mergeBowlingEntry(current, entry, ballsPerOver, isNewMatch)
+          { ...mergeBowlingEntry(current, entry, ballsPerOver, isNewMatch), id }
         )
       }
     }
