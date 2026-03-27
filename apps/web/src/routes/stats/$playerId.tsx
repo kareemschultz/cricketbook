@@ -1,6 +1,17 @@
 import { createFileRoute, useParams } from "@tanstack/react-router"
 import { useLiveQuery } from "dexie-react-hooks"
+import { motion } from "framer-motion"
 import { ArrowLeft, User, TrendingUp, Zap } from "lucide-react"
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06 } },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, scale: 0.95, y: 8 },
+  visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.2, ease: "easeOut" as const } },
+}
 import { db } from "@/db/index"
 import type { CricketFormat, PlayerBattingStats, PlayerBowlingStats } from "@/types/cricket"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
@@ -26,28 +37,182 @@ const FORMATS: (CricketFormat | "ALL")[] = ["ALL", "T20", "ODI", "TEST", "CUSTOM
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-muted/30 rounded-lg p-3 flex flex-col gap-0.5">
+    <motion.div
+      variants={itemVariants}
+      className="bg-muted/30 rounded-lg p-3 flex flex-col gap-0.5"
+    >
       <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</p>
       <p className="text-xl font-bold tabular-nums leading-tight">{value}</p>
+    </motion.div>
+  )
+}
+
+// ─── Batting Form Chart ───────────────────────────────────────────────────────
+
+function battingBarColor(runs: number): string {
+  if (runs === 0) return "#ef4444"          // duck — red
+  if (runs <= 15) return "#6b7280"          // 1-15 — muted
+  if (runs <= 30) return "#3b82f6"          // 16-30 — blue/primary
+  if (runs <= 50) return "#22c55e"          // 31-50 — green
+  return "#eab308"                          // 50+  — gold
+}
+
+function BattingFormChart({ runs }: { runs: number[] }) {
+  const n = runs.length
+  if (n === 0) return null
+
+  const maxVal = Math.max(...runs, 1)
+
+  // viewBox dimensions
+  const VW = 300
+  const VH = 100
+  const PAD_TOP = 18   // room for score labels
+  const PAD_BOTTOM = 4
+  const PAD_X = 2
+  const chartH = VH - PAD_TOP - PAD_BOTTOM
+
+  const slotW = (VW - PAD_X * 2) / n
+  const barW = Math.max(2, slotW - 2)
+
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground mb-2">Last {n} innings</p>
+      <svg
+        viewBox={`0 0 ${VW} ${VH}`}
+        width="100%"
+        preserveAspectRatio="none"
+        aria-label="Batting recent form"
+        style={{ display: "block" }}
+      >
+        {runs.map((v, i) => {
+          const x = PAD_X + i * slotW + (slotW - barW) / 2
+          const barH = Math.max(3, (v / maxVal) * chartH)
+          const y = PAD_TOP + chartH - barH
+          const color = battingBarColor(v)
+          return (
+            <g key={i}>
+              <rect
+                x={x}
+                y={y}
+                width={barW}
+                height={barH}
+                fill={color}
+                fillOpacity={0.85}
+                rx={1.5}
+              />
+              <text
+                x={x + barW / 2}
+                y={y - 3}
+                textAnchor="middle"
+                fontSize={7}
+                fill={color}
+                fontWeight="600"
+                fontFamily="inherit"
+              >
+                {v}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+      {/* Color legend */}
+      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5">
+        {[
+          { label: "Duck", color: "#ef4444" },
+          { label: "1-15", color: "#6b7280" },
+          { label: "16-30", color: "#3b82f6" },
+          { label: "31-50", color: "#22c55e" },
+          { label: "50+", color: "#eab308" },
+        ].map(({ label, color }) => (
+          <div key={label} className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: color }} />
+            <span className="text-[9px] text-muted-foreground">{label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
 
-// ─── Form Bar Chart ───────────────────────────────────────────────────────────
+// ─── Bowling Form Chart ────────────────────────────────────────────────────────
 
-function FormBars({ values, label }: { values: number[]; label: string }) {
-  const maxVal = Math.max(...values, 1)
+function bowlingBarColor(wickets: number): string {
+  if (wickets === 0) return "#6b7280"       // 0 — muted
+  if (wickets === 1) return "#3b82f6"       // 1 — blue
+  if (wickets === 2) return "#22c55e"       // 2 — green
+  if (wickets <= 4) return "#eab308"        // 3-4 — gold
+  return "#ef4444"                          // 5+ — red (haul)
+}
+
+function BowlingFormChart({ wickets }: { wickets: number[] }) {
+  const n = wickets.length
+  if (n === 0) return null
+
+  const maxVal = Math.max(...wickets, 1)
+
+  const VW = 300
+  const VH = 100
+  const PAD_TOP = 18
+  const PAD_BOTTOM = 4
+  const PAD_X = 2
+  const chartH = VH - PAD_TOP - PAD_BOTTOM
+
+  const slotW = (VW - PAD_X * 2) / n
+  const barW = Math.max(2, slotW - 2)
+
   return (
     <div>
-      <p className="text-xs text-muted-foreground mb-2">Last {values.length} {label}</p>
-      <div className="flex items-end gap-1 h-16">
-        {values.map((v, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-            <div
-              className="w-full bg-primary/70 rounded-t-sm transition-all"
-              style={{ height: `${Math.max(2, (v / maxVal) * 56)}px` }}
-            />
-            <span className="text-[8px] text-muted-foreground tabular-nums">{v}</span>
+      <p className="text-xs text-muted-foreground mb-2">Last {n} spells</p>
+      <svg
+        viewBox={`0 0 ${VW} ${VH}`}
+        width="100%"
+        preserveAspectRatio="none"
+        aria-label="Bowling recent form"
+        style={{ display: "block" }}
+      >
+        {wickets.map((v, i) => {
+          const x = PAD_X + i * slotW + (slotW - barW) / 2
+          const barH = Math.max(3, (v / maxVal) * chartH)
+          const y = PAD_TOP + chartH - barH
+          const color = bowlingBarColor(v)
+          return (
+            <g key={i}>
+              <rect
+                x={x}
+                y={y}
+                width={barW}
+                height={barH}
+                fill={color}
+                fillOpacity={0.85}
+                rx={1.5}
+              />
+              <text
+                x={x + barW / 2}
+                y={y - 3}
+                textAnchor="middle"
+                fontSize={7}
+                fill={color}
+                fontWeight="600"
+                fontFamily="inherit"
+              >
+                {v}w
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+      {/* Color legend */}
+      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5">
+        {[
+          { label: "0w", color: "#6b7280" },
+          { label: "1w", color: "#3b82f6" },
+          { label: "2w", color: "#22c55e" },
+          { label: "3-4w", color: "#eab308" },
+          { label: "5w+", color: "#ef4444" },
+        ].map(({ label, color }) => (
+          <div key={label} className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: color }} />
+            <span className="text-[9px] text-muted-foreground">{label}</span>
           </div>
         ))}
       </div>
@@ -97,7 +262,12 @@ function BattingTab({ playerId }: { playerId: string }) {
   return (
     <div className="space-y-5 pt-3">
       {/* Career grid */}
-      <div className="grid grid-cols-3 gap-2">
+      <motion.div
+        className="grid grid-cols-3 gap-2"
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+      >
         <StatCard label="Matches" value={fmtNum(overall.matches)} />
         <StatCard label="Innings" value={fmtNum(overall.innings)} />
         <StatCard label="Runs" value={fmtNum(overall.runs)} />
@@ -110,13 +280,13 @@ function BattingTab({ playerId }: { playerId: string }) {
         <StatCard label="4s" value={fmtNum(overall.fours)} />
         <StatCard label="6s" value={fmtNum(overall.sixes)} />
         <StatCard label="Not Outs" value={fmtNum(overall.notOuts)} />
-      </div>
+      </motion.div>
 
-      {/* Form chart */}
+      {/* Recent Form chart */}
       {formRuns && formRuns.length > 1 && (
         <Card>
           <CardContent className="py-3 px-4">
-            <FormBars values={formRuns} label="innings" />
+            <BattingFormChart runs={formRuns} />
           </CardContent>
         </Card>
       )}
@@ -213,7 +383,12 @@ function BowlingTab({ playerId }: { playerId: string }) {
   return (
     <div className="space-y-5 pt-3">
       {/* Career grid */}
-      <div className="grid grid-cols-3 gap-2">
+      <motion.div
+        className="grid grid-cols-3 gap-2"
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+      >
         <StatCard label="Matches" value={fmtNum(overall.matches)} />
         <StatCard label="Innings" value={fmtNum(overall.innings)} />
         <StatCard label="Wickets" value={fmtNum(overall.wickets)} />
@@ -226,13 +401,13 @@ function BowlingTab({ playerId }: { playerId: string }) {
         <StatCard label="3W" value={fmtNum(overall.threeWicketHauls)} />
         <StatCard label="5W" value={fmtNum(overall.fiveWicketHauls)} />
         <StatCard label="Dots" value={fmtNum(overall.dots)} />
-      </div>
+      </motion.div>
 
-      {/* Form chart */}
+      {/* Recent Form chart */}
       {formWickets && formWickets.length > 1 && (
         <Card>
           <CardContent className="py-3 px-4">
-            <FormBars values={formWickets} label="spells (wickets)" />
+            <BowlingFormChart wickets={formWickets} />
           </CardContent>
         </Card>
       )}
@@ -335,8 +510,18 @@ function PlayerProfilePage() {
         </div>
       </div>
 
-      <div className="px-4 py-4 space-y-4 pb-8">
+      <motion.div
+        className="px-4 py-4 space-y-4 pb-8"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+      >
         {/* Player header card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+        >
         <Card>
           <CardContent className="py-4 px-4">
             <div className="flex items-center gap-3">
@@ -372,6 +557,7 @@ function PlayerProfilePage() {
             </div>
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* Stats tabs */}
         <Tabs defaultValue="batting">
@@ -394,7 +580,7 @@ function PlayerProfilePage() {
             <BowlingTab playerId={playerId} />
           </TabsContent>
         </Tabs>
-      </div>
+      </motion.div>
     </div>
   )
 }

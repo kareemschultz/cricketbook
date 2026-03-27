@@ -3,6 +3,17 @@ import { useLiveQuery } from "dexie-react-hooks"
 import { formatDistanceToNow } from "date-fns"
 import { Search, Clock, Trophy } from "lucide-react"
 import { useState } from "react"
+import { motion } from "framer-motion"
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.05 } },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: "easeOut" as const } },
+}
 import { db } from "@/db/index"
 import type { Match } from "@/types/cricket"
 import { Card, CardContent } from "@workspace/ui/components/card"
@@ -43,11 +54,12 @@ function MatchRow({ match }: { match: Match }) {
   const team2Score = getTeamScore(match, match.team2Id)
 
   return (
-    <button
+    <motion.button
       className="w-full text-left"
       onClick={() =>
         navigate({ to: "/scorecard/$matchId", params: { matchId: match.id } })
       }
+      whileTap={{ scale: 0.98 }}
     >
       <Card className="hover:bg-muted/50 active:bg-muted/70 transition-colors">
         <CardContent className="py-3 px-4">
@@ -102,7 +114,7 @@ function MatchRow({ match }: { match: Match }) {
           </div>
         </CardContent>
       </Card>
-    </button>
+    </motion.button>
   )
 }
 
@@ -189,15 +201,22 @@ function HistoryPage() {
           </div>
         ) : (
           /* Match list */
-          <div className="space-y-2">
+          <motion.div
+            className="space-y-2"
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+          >
             <p className="text-xs text-muted-foreground mb-3">
               {filtered.length} match{filtered.length !== 1 ? "es" : ""}
               {search.trim() !== "" && " found"}
             </p>
             {filtered.map((match) => (
-              <MatchRow key={match.id} match={match} />
+              <motion.div key={match.id} variants={itemVariants}>
+                <MatchRow match={match} />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

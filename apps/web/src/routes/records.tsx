@@ -1,7 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useLiveQuery } from "dexie-react-hooks"
 import { format } from "date-fns"
+import { motion } from "framer-motion"
 import { Trophy, TrendingUp, Zap, Shield, Star, Target } from "lucide-react"
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.07 } },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: "easeOut" as const } },
+}
 import { db } from "@/db/index"
 import type { Match, BatsmanEntry, BowlerEntry } from "@/types/cricket"
 import { Card, CardContent } from "@workspace/ui/components/card"
@@ -219,6 +230,7 @@ interface RecordCardProps {
 
 function RecordCard({ icon, title, value, sub, meta, format, empty }: RecordCardProps) {
   return (
+    <motion.div variants={itemVariants}>
     <Card className={empty ? "opacity-50" : ""}>
       <CardContent className="py-3 px-4">
         <div className="flex items-start gap-3">
@@ -250,6 +262,7 @@ function RecordCard({ icon, title, value, sub, meta, format, empty }: RecordCard
         </div>
       </CardContent>
     </Card>
+    </motion.div>
   )
 }
 
@@ -304,7 +317,12 @@ function RecordsPage() {
             </p>
           </div>
         ) : (
-          <>
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+            className="space-y-5"
+          >
             {/* Team records */}
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -410,76 +428,84 @@ function RecordsPage() {
                 </h2>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Card className={!records.mostRunsCareer ? "opacity-50" : ""}>
-                  <CardContent className="py-3 px-3">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <TrendingUp className="size-3 text-blue-400" />
-                      <p className="text-[10px] text-muted-foreground">
-                        Most runs
+                <motion.div variants={itemVariants}>
+                  <Card className={!records.mostRunsCareer ? "opacity-50" : ""}>
+                    <CardContent className="py-3 px-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <TrendingUp className="size-3 text-blue-400" />
+                        <p className="text-[10px] text-muted-foreground">
+                          Most runs
+                        </p>
+                      </div>
+                      <p className="text-2xl font-bold tabular-nums">
+                        {records.mostRunsCareer?.runs ?? "—"}
                       </p>
-                    </div>
-                    <p className="text-2xl font-bold tabular-nums">
-                      {records.mostRunsCareer?.runs ?? "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {records.mostRunsCareer?.playerName ?? "No data"}
-                    </p>
-                  </CardContent>
-                </Card>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {records.mostRunsCareer?.playerName ?? "No data"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
-                <Card className={!records.mostWicketsCareer ? "opacity-50" : ""}>
-                  <CardContent className="py-3 px-3">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Zap className="size-3 text-amber-400" />
-                      <p className="text-[10px] text-muted-foreground">
-                        Most wickets
+                <motion.div variants={itemVariants}>
+                  <Card className={!records.mostWicketsCareer ? "opacity-50" : ""}>
+                    <CardContent className="py-3 px-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Zap className="size-3 text-amber-400" />
+                        <p className="text-[10px] text-muted-foreground">
+                          Most wickets
+                        </p>
+                      </div>
+                      <p className="text-2xl font-bold tabular-nums">
+                        {records.mostWicketsCareer?.wickets ?? "—"}
                       </p>
-                    </div>
-                    <p className="text-2xl font-bold tabular-nums">
-                      {records.mostWicketsCareer?.wickets ?? "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {records.mostWicketsCareer?.playerName ?? "No data"}
-                    </p>
-                  </CardContent>
-                </Card>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {records.mostWicketsCareer?.playerName ?? "No data"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
-                <Card className={!records.mostFifties ? "opacity-50" : ""}>
-                  <CardContent className="py-3 px-3">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Star className="size-3 text-purple-400" />
-                      <p className="text-[10px] text-muted-foreground">
-                        Most fifties
+                <motion.div variants={itemVariants}>
+                  <Card className={!records.mostFifties ? "opacity-50" : ""}>
+                    <CardContent className="py-3 px-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Star className="size-3 text-purple-400" />
+                        <p className="text-[10px] text-muted-foreground">
+                          Most fifties
+                        </p>
+                      </div>
+                      <p className="text-2xl font-bold tabular-nums">
+                        {records.mostFifties?.fifties ?? "—"}
                       </p>
-                    </div>
-                    <p className="text-2xl font-bold tabular-nums">
-                      {records.mostFifties?.fifties ?? "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {records.mostFifties?.playerName ?? "No data"}
-                    </p>
-                  </CardContent>
-                </Card>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {records.mostFifties?.playerName ?? "No data"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
-                <Card className={!records.mostHundreds ? "opacity-50" : ""}>
-                  <CardContent className="py-3 px-3">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Trophy className="size-3 text-emerald-400" />
-                      <p className="text-[10px] text-muted-foreground">
-                        Most hundreds
+                <motion.div variants={itemVariants}>
+                  <Card className={!records.mostHundreds ? "opacity-50" : ""}>
+                    <CardContent className="py-3 px-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Trophy className="size-3 text-emerald-400" />
+                        <p className="text-[10px] text-muted-foreground">
+                          Most hundreds
+                        </p>
+                      </div>
+                      <p className="text-2xl font-bold tabular-nums">
+                        {records.mostHundreds?.hundreds ?? "—"}
                       </p>
-                    </div>
-                    <p className="text-2xl font-bold tabular-nums">
-                      {records.mostHundreds?.hundreds ?? "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {records.mostHundreds?.playerName ?? "No data"}
-                    </p>
-                  </CardContent>
-                </Card>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {records.mostHundreds?.playerName ?? "No data"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               </div>
             </div>
-          </>
+          </motion.div>
         )}
       </div>
     </div>

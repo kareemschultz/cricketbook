@@ -1,7 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useLiveQuery } from "dexie-react-hooks"
 import { useState, useRef, useEffect } from "react"
+import { motion } from "framer-motion"
 import { Users, Plus, MoreVertical, Pencil, Trash2 } from "lucide-react"
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.05 } },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: "easeOut" as const } },
+}
 import { nanoid } from "nanoid"
 import { db } from "@/db/index"
 import type { Team } from "@/types/cricket"
@@ -277,6 +288,7 @@ function TeamCard({ team, playerCount, onEdit, onDelete }: TeamCardProps) {
   }
 
   return (
+    <motion.div whileTap={{ scale: 0.98 }}>
     <Card
       className="active:bg-muted/50 transition-colors cursor-pointer"
       onPointerDown={handlePointerDown}
@@ -355,6 +367,7 @@ function TeamCard({ team, playerCount, onEdit, onDelete }: TeamCardProps) {
         </div>
       </CardContent>
     </Card>
+    </motion.div>
   )
 }
 
@@ -446,20 +459,26 @@ function TeamsPage() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-2">
+          <motion.div
+            className="space-y-2"
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+          >
             <p className="text-xs text-muted-foreground mb-3">
               {teams.length} team{teams.length !== 1 ? "s" : ""}
             </p>
             {teams.map((team) => (
-              <TeamCard
-                key={team.id}
-                team={team}
-                playerCount={playerCounts?.[team.id] ?? 0}
-                onEdit={setEditTeam}
-                onDelete={handleDeleteClick}
-              />
+              <motion.div key={team.id} variants={itemVariants}>
+                <TeamCard
+                  team={team}
+                  playerCount={playerCounts?.[team.id] ?? 0}
+                  onEdit={setEditTeam}
+                  onDelete={handleDeleteClick}
+                />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
 

@@ -1,4 +1,14 @@
+import { motion } from "framer-motion"
 import type { BatsmanEntry, ExtrasBreakdown } from "@/types/cricket"
+
+const rowVariants = {
+  hidden: { opacity: 0, x: -8 },
+  visible: (i: number) => ({
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.18, delay: i * 0.04, ease: "easeOut" as const },
+  }),
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,8 +54,15 @@ export function BattingCard({ battingCard, extras, totalRuns, totalWickets, over
           </tr>
         </thead>
         <tbody>
-          {battingCard.map((b) => (
-            <tr key={b.playerId} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
+          {battingCard.map((b, i) => (
+            <motion.tr
+              key={b.playerId}
+              custom={i}
+              variants={rowVariants}
+              initial="hidden"
+              animate="visible"
+              className="border-b border-border/40 hover:bg-muted/30 transition-colors"
+            >
               <td className="py-1.5 px-2">
                 {!b.isOut && !b.isRetiredHurt ? (
                   <span className="font-semibold">{b.playerName}*</span>
@@ -61,7 +78,7 @@ export function BattingCard({ battingCard, extras, totalRuns, totalWickets, over
               <td className="py-1.5 px-2 text-right text-muted-foreground tabular-nums">{b.fours}</td>
               <td className="py-1.5 px-2 text-right text-muted-foreground tabular-nums">{b.sixes}</td>
               <td className="py-1.5 px-2 text-right text-muted-foreground tabular-nums">{fmtSR(b.strikeRate)}</td>
-            </tr>
+            </motion.tr>
           ))}
 
           {/* Extras row */}

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { motion } from "framer-motion"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useLiveQuery } from "dexie-react-hooks"
 import { formatDistanceToNow, format } from "date-fns"
@@ -9,6 +10,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/componen
 import { Button } from "@workspace/ui/components/button"
 import { Badge } from "@workspace/ui/components/badge"
 import { seedDemoMatch } from "@/lib/demo-seed"
+
+// ─── Animation variants ───────────────────────────────────────────────────────
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0 },
+}
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.05 } },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: "easeOut" as const } },
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -52,6 +70,12 @@ function ActiveMatchCard({ match }: { match: Match }) {
     : "0.0 ov"
 
   return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      whileTap={{ scale: 0.99 }}
+    >
     <Card className="border-emerald-500/40 bg-emerald-500/5">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
@@ -82,6 +106,7 @@ function ActiveMatchCard({ match }: { match: Match }) {
         </Button>
       </CardContent>
     </Card>
+    </motion.div>
   )
 }
 
@@ -93,9 +118,10 @@ function RecentMatchCard({ match }: { match: Match }) {
   const team2Score = getInningsScore(match, match.team2Id)
 
   return (
-    <button
+    <motion.button
       className="w-full text-left"
       onClick={() => navigate({ to: "/history" })}
+      whileTap={{ scale: 0.98 }}
     >
       <Card className="hover:bg-muted/50 transition-colors">
         <CardContent className="py-3 px-4">
@@ -139,7 +165,7 @@ function RecentMatchCard({ match }: { match: Match }) {
           </div>
         </CardContent>
       </Card>
-    </button>
+    </motion.button>
   )
 }
 
@@ -212,84 +238,99 @@ function HomePage() {
         </div>
       </div>
 
-      <div className="px-4 py-4 space-y-5">
+      <motion.div
+        className="px-4 py-4 space-y-5"
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+      >
         {/* Active match */}
         {liveMatch && <ActiveMatchCard match={liveMatch} />}
 
         {/* Quick actions */}
-        <div>
+        <motion.div variants={fadeUp} transition={{ duration: 0.2, ease: "easeOut" }}>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Quick Actions
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            <Button
-              variant="outline"
-              className="h-14 flex flex-col gap-1 text-sm font-medium border-dashed"
-              onClick={() => navigate({ to: "/new-match" })}
-            >
-              <Plus className="size-4" />
-              New Match
-            </Button>
-            <Button
-              variant="outline"
-              className="h-14 flex flex-col gap-1 text-sm font-medium border-dashed"
-              onClick={() => navigate({ to: "/tournaments" })}
-            >
-              <Trophy className="size-4" />
-              Tournaments
-            </Button>
+            <motion.div whileTap={{ scale: 0.97 }}>
+              <Button
+                variant="outline"
+                className="w-full h-14 flex flex-col gap-1 text-sm font-medium border-dashed"
+                onClick={() => navigate({ to: "/new-match" })}
+              >
+                <Plus className="size-4" />
+                New Match
+              </Button>
+            </motion.div>
+            <motion.div whileTap={{ scale: 0.97 }}>
+              <Button
+                variant="outline"
+                className="w-full h-14 flex flex-col gap-1 text-sm font-medium border-dashed"
+                onClick={() => navigate({ to: "/tournaments" })}
+              >
+                <Trophy className="size-4" />
+                Tournaments
+              </Button>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Quick stats strip */}
-        <div>
+        <motion.div variants={fadeUp} transition={{ duration: 0.2, delay: 0.05, ease: "easeOut" }}>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             All-Time Stats
           </h2>
           <div className="grid grid-cols-3 gap-2">
-            <Card>
-              <CardContent className="py-3 px-3 text-center">
-                <p className="text-xl font-bold tabular-nums">
-                  {totalMatches ?? 0}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
-                  Matches
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="py-3 px-3 text-center">
-                <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <TrendingUp className="size-3 text-blue-400" />
-                  <p className="text-sm font-bold tabular-nums truncate">
-                    {topBatsman ? topBatsman.runs : "—"}
+            <motion.div whileTap={{ scale: 0.96 }}>
+              <Card>
+                <CardContent className="py-3 px-3 text-center">
+                  <p className="text-xl font-bold tabular-nums">
+                    {totalMatches ?? 0}
                   </p>
-                </div>
-                <p className="text-[10px] text-muted-foreground leading-tight truncate">
-                  {topBatsman ? topBatsman.playerName.split(" ")[0] : "Top Bat"}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="py-3 px-3 text-center">
-                <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <Zap className="size-3 text-amber-400" />
-                  <p className="text-sm font-bold tabular-nums truncate">
-                    {topBowler ? topBowler.wickets : "—"}
+                  <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+                    Matches
                   </p>
-                </div>
-                <p className="text-[10px] text-muted-foreground leading-tight truncate">
-                  {topBowler
-                    ? topBowler.playerName.split(" ")[0]
-                    : "Top Bowl"}
-                </p>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </motion.div>
+            <motion.div whileTap={{ scale: 0.96 }}>
+              <Card>
+                <CardContent className="py-3 px-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-0.5">
+                    <TrendingUp className="size-3 text-blue-400" />
+                    <p className="text-sm font-bold tabular-nums truncate">
+                      {topBatsman ? topBatsman.runs : "—"}
+                    </p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-tight truncate">
+                    {topBatsman ? topBatsman.playerName.split(" ")[0] : "Top Bat"}
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+            <motion.div whileTap={{ scale: 0.96 }}>
+              <Card>
+                <CardContent className="py-3 px-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-0.5">
+                    <Zap className="size-3 text-amber-400" />
+                    <p className="text-sm font-bold tabular-nums truncate">
+                      {topBowler ? topBowler.wickets : "—"}
+                    </p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-tight truncate">
+                    {topBowler
+                      ? topBowler.playerName.split(" ")[0]
+                      : "Top Bowl"}
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Recent matches */}
-        <div>
+        <motion.div variants={fadeUp} transition={{ duration: 0.2, delay: 0.1, ease: "easeOut" }}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Recent Matches
@@ -337,14 +378,21 @@ function HomePage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-2">
+            <motion.div
+              className="space-y-2"
+              initial="hidden"
+              animate="visible"
+              variants={containerVariants}
+            >
               {recentMatches.map((match) => (
-                <RecentMatchCard key={match.id} match={match} />
+                <motion.div key={match.id} variants={itemVariants}>
+                  <RecentMatchCard match={match} />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   )
 }

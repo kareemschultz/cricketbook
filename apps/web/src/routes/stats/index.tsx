@@ -1,7 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useLiveQuery } from "dexie-react-hooks"
 import { useState } from "react"
+import { motion } from "framer-motion"
 import { BarChart2, TrendingUp, Zap, Target, Star } from "lucide-react"
+
+const rowVariants = {
+  hidden: { opacity: 0, x: -6 },
+  visible: (i: number) => ({
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.18, delay: i * 0.03, ease: "easeOut" as const },
+  }),
+}
 import { db } from "@/db/index"
 import type { StatFilter, PlayerBattingStats, PlayerBowlingStats } from "@/types/cricket"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
@@ -62,8 +72,12 @@ function RunScorersTable({
         </thead>
         <tbody>
           {stats.map((s, i) => (
-            <tr
+            <motion.tr
               key={s.playerId}
+              custom={i}
+              variants={rowVariants}
+              initial="hidden"
+              animate="visible"
               className="border-b border-border/40 hover:bg-muted/30 transition-colors cursor-pointer active:bg-muted/50"
               onClick={() => onSelectPlayer(s.playerId)}
             >
@@ -81,7 +95,7 @@ function RunScorersTable({
               <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">
                 {s.strikeRate.toFixed(1)}
               </td>
-            </tr>
+            </motion.tr>
           ))}
         </tbody>
       </table>
@@ -128,8 +142,12 @@ function WicketTakersTable({
         </thead>
         <tbody>
           {stats.map((s, i) => (
-            <tr
+            <motion.tr
               key={s.playerId}
+              custom={i}
+              variants={rowVariants}
+              initial="hidden"
+              animate="visible"
               className="border-b border-border/40 hover:bg-muted/30 transition-colors cursor-pointer active:bg-muted/50"
               onClick={() => onSelectPlayer(s.playerId)}
             >
@@ -145,7 +163,7 @@ function WicketTakersTable({
               <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">
                 {s.bestWickets}/{s.bestRuns}
               </td>
-            </tr>
+            </motion.tr>
           ))}
         </tbody>
       </table>
@@ -195,8 +213,12 @@ function BattingAvgTable({
         </thead>
         <tbody>
           {stats.map((s, i) => (
-            <tr
+            <motion.tr
               key={s.playerId}
+              custom={i}
+              variants={rowVariants}
+              initial="hidden"
+              animate="visible"
               className="border-b border-border/40 hover:bg-muted/30 transition-colors cursor-pointer active:bg-muted/50"
               onClick={() => onSelectPlayer(s.playerId)}
             >
@@ -210,7 +232,7 @@ function BattingAvgTable({
               </td>
               <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{s.fifties}</td>
               <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{s.hundreds}</td>
-            </tr>
+            </motion.tr>
           ))}
         </tbody>
       </table>
@@ -259,8 +281,12 @@ function BestEconomyTable({
         </thead>
         <tbody>
           {stats.map((s, i) => (
-            <tr
+            <motion.tr
               key={s.playerId}
+              custom={i}
+              variants={rowVariants}
+              initial="hidden"
+              animate="visible"
               className="border-b border-border/40 hover:bg-muted/30 transition-colors cursor-pointer active:bg-muted/50"
               onClick={() => onSelectPlayer(s.playerId)}
             >
@@ -273,7 +299,7 @@ function BestEconomyTable({
                 {s.economy.toFixed(2)}
               </td>
               <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{s.dots}</td>
-            </tr>
+            </motion.tr>
           ))}
         </tbody>
       </table>

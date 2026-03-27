@@ -1,4 +1,14 @@
+import { motion } from "framer-motion"
 import type { BowlerEntry } from "@/types/cricket"
+
+const rowVariants = {
+  hidden: { opacity: 0, x: -8 },
+  visible: (i: number) => ({
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.18, delay: i * 0.04, ease: "easeOut" as const },
+  }),
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,8 +44,15 @@ export function BowlingCard({ bowlingCard }: BowlingCardProps) {
           </tr>
         </thead>
         <tbody>
-          {bowlingCard.map((b) => (
-            <tr key={b.playerId} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
+          {bowlingCard.map((b, i) => (
+            <motion.tr
+              key={b.playerId}
+              custom={i}
+              variants={rowVariants}
+              initial="hidden"
+              animate="visible"
+              className="border-b border-border/40 hover:bg-muted/30 transition-colors"
+            >
               <td className="py-1.5 px-2">{b.playerName}</td>
               <td className="py-1.5 px-2 text-right tabular-nums">{fmtOvers(b.overs, b.balls)}</td>
               <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">{b.maidens}</td>
@@ -49,7 +66,7 @@ export function BowlingCard({ bowlingCard }: BowlingCardProps) {
               </td>
               <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">{fmtEco(b.economy)}</td>
               <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">{b.dots}</td>
-            </tr>
+            </motion.tr>
           ))}
         </tbody>
       </table>
