@@ -392,6 +392,18 @@ function HomePage() {
             </motion.div>
           )}
         </motion.div>
+
+        {/* Switch to FIFABook */}
+        <motion.div variants={fadeUp} transition={{ duration: 0.2, delay: 0.15, ease: "easeOut" }}>
+          <div className="pt-2 pb-4 text-center">
+            <a
+              href="/cricketbook/fifa/"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ⚽ Switch to FIFABook →
+            </a>
+          </div>
+        </motion.div>
       </motion.div>
     </div>
   )
