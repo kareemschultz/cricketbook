@@ -15,7 +15,7 @@ interface NewBatsmanSheetProps {
 
 export function NewBatsmanSheet({ open, onClose, availableBatsmen, onSelect }: NewBatsmanSheetProps) {
   return (
-    <Sheet open={open} onOpenChange={(isOpen) => { if (!isOpen && onClose) onClose() }}>
+    <Sheet open={open} onOpenChange={(isOpen) => { if (!isOpen && onClose) onClose() }} modal={true}>
       <SheetContent side="bottom" showCloseButton={false} className="rounded-t-2xl max-h-[70dvh] pb-safe">
         <SheetHeader className="pb-3 pt-5 px-4">
           <div className="w-10 h-1.5 bg-muted-foreground/30 rounded-full mx-auto mb-3" />

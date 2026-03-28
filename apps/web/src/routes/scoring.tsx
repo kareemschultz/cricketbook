@@ -388,7 +388,7 @@ function ScoringPage() {
       {currentBowler && <BowlerCard bowler={currentBowler} />}
 
       {/* ── Over display ── */}
-      <OverDisplay balls={overBalls} lastOverSummary={lastOverSummary} />
+      <OverDisplay balls={overBalls} lastOverSummary={lastOverSummary} currentBowler={currentBowler} />
 
       {/* ── Free hit banner ── */}
       {isFreeHit && <FreeHitBanner />}
@@ -404,9 +404,13 @@ function ScoringPage() {
             transition={{ duration: 0.15 }}
             onClick={() => {
               haptic()
-              nextAction.kind === "batsman"
-                ? setShowNewBatsmanSheet(true)
-                : setShowNewBowlerSheet(true)
+              if (nextAction.kind === "batsman") {
+                if (allPlayers.length > 0) {
+                  setShowNewBatsmanSheet(true)
+                }
+              } else {
+                setShowNewBowlerSheet(true)
+              }
             }}
             className={cn(
               "w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold border-y transition-colors",
