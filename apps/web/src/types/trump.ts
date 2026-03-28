@@ -31,6 +31,8 @@ export interface TrumpMatch {
   team2Score: number
   winnerId: string | null
   status: "live" | "completed" | "abandoned"
+  tournamentId?: string
+  tournamentFixtureId?: string
   notes?: string
 }
 
@@ -114,4 +116,55 @@ export interface TrumpH2HRecord {
   lost: number
   pointsFor: number
   pointsAgainst: number
+}
+
+// ─── Tournaments ─────────────────────────────────────────────────────────────
+
+export type TrumpTournamentFormat = "ROUND_ROBIN" | "KNOCKOUT"
+export type TrumpTournamentStatus = "upcoming" | "live" | "completed"
+export type TrumpTournamentFixtureResult = "team1" | "team2" | "abandoned" | null
+export type TrumpTournamentPhase = "league" | "knockout"
+
+export interface TrumpTournamentFixture {
+  id: string
+  tournamentId: string
+  matchId?: string
+  team1Id: string
+  team2Id: string
+  round: number
+  phase: TrumpTournamentPhase
+  scheduledDate?: Date
+  result: TrumpTournamentFixtureResult
+  pointsTeam1?: number
+  pointsTeam2?: number
+}
+
+export interface TrumpTournament {
+  id: string
+  name: string
+  format: TrumpTournamentFormat
+  teamIds: string[]
+  fixtures: TrumpTournamentFixture[]
+  status: TrumpTournamentStatus
+  pointsPerWin: number
+  pointsPerAbandoned: number
+  championTeamId?: string
+  createdAt: Date
+  completedAt?: Date
+}
+
+export interface TrumpTournamentStanding {
+  teamId: string
+  teamName: string
+  colorHex: string
+  played: number
+  won: number
+  lost: number
+  abandoned: number
+  points: number
+  scoreFor: number
+  scoreAgainst: number
+  pointDiff: number
+  allFours: number
+  hangJacks: number
 }

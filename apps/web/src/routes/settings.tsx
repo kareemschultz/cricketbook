@@ -2,9 +2,10 @@ import { motion } from "framer-motion"
 import { createFileRoute } from "@tanstack/react-router"
 import { useLiveQuery } from "dexie-react-hooks"
 import { useState, useEffect, useCallback } from "react"
-import { Settings, Download, Upload, Trash2, Info, Palette, Sliders, Database, AlertTriangle, CheckCircle2, FlaskConical } from "lucide-react"
+import { Settings, Download, Upload, Trash2, Info, Palette, Sliders, Database, AlertTriangle, CheckCircle2, FlaskConical, GitMerge, RefreshCw } from "lucide-react"
 import { db, getSettings, saveSettings } from "@/db/index"
 import { validateImportPayload, formatValidationErrors } from "@/lib/import-validator"
+import { EXPORT_TABLE_KEYS, type ExportPayload, type ImportMode } from "@/types/export"
 import { getErrorLog, clearErrorLog, subscribeErrorLog, type ErrorEntry } from "@/lib/error-log"
 import type { AppSettings, CricketFormat } from "@/types/cricket"
 import { DEFAULT_RULES } from "@/types/cricket"
@@ -50,6 +51,7 @@ function SettingsPage() {
   const [localSettings, setLocalSettings] = useState<AppSettings | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [clearConfirm, setClearConfirm] = useState(false)
+  const [importMode, setImportMode] = useState<ImportMode>("replace")
 
   // ── Dry-run state ─────────────────────────────────────────────────────────
   interface DryRunResult {
@@ -69,49 +71,63 @@ function SettingsPage() {
     return subscribeErrorLog(() => setErrorLog(getErrorLog()))
   }, [])
 
-  useEffect(() => {
-    if (settingsRow && !localSettings) {
-      setLocalSettings(settingsRow)
-    }
-  }, [settingsRow, localSettings])
-
-  async function handleSave(patch: Partial<AppSettings>) {
-    setIsSaving(true)
-    await saveSettings(patch)
-    setIsSaving(false)
-  }
-
-  function updateSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
-    setLocalSettings((prev) => (prev ? { ...prev, [key]: value } : null))
-    handleSave({ [key]: value })
-    if (key === "theme") {
-      setTheme(value as AppSettings["theme"])
-    }
-  }
-
   // ── Export ───────────────────────────────────────────────────────────────────
 
   async function handleExport() {
-    const [teams, players, matches, tournaments, battingStats, bowlingStats] =
-      await Promise.all([
-        db.teams.toArray(),
-        db.players.toArray(),
-        db.matches.toArray(),
-        db.tournaments.toArray(),
-        db.battingStats.toArray(),
-        db.bowlingStats.toArray(),
-      ])
+    const [
+      teams, players, matches, tournaments, battingStats, bowlingStats,
+      fifaPlayers, fifaMatches,
+      dominoPlayers, dominoTeams, dominoMatches, dominoTournaments,
+      trumpPlayers, trumpTeams, trumpMatches, trumpTournaments,
+      settingsRows,
+    ] = await Promise.all([
+      db.teams.toArray(),
+      db.players.toArray(),
+      db.matches.toArray(),
+      db.tournaments.toArray(),
+      db.battingStats.toArray(),
+      db.bowlingStats.toArray(),
+      db.fifaPlayers.toArray(),
+      db.fifaMatches.toArray(),
+      db.dominoPlayers.toArray(),
+      db.dominoTeams.toArray(),
+      db.dominoMatches.toArray(),
+      db.dominoTournaments.toArray(),
+      db.trumpPlayers.toArray(),
+      db.trumpTeams.toArray(),
+      db.trumpMatches.toArray(),
+      db.trumpTournaments.toArray(),
+      db.settings.toArray(),
+    ])
 
-    const payload = {
+    const tables = {
+      teams, players, matches, tournaments, battingStats, bowlingStats,
+      fifaPlayers, fifaMatches,
+      dominoPlayers, dominoTeams, dominoMatches, dominoTournaments,
+      trumpPlayers, trumpTeams, trumpMatches, trumpTournaments,
+      settings: settingsRows,
+    }
+
+    // Compute SHA-256 over the canonical JSON of the 17 data tables.
+    // Metadata fields (exportedAt, schemaVersion, integrity) are excluded so
+    // that re-exporting identical data always produces the same hash.
+    const canonical = JSON.stringify(
+      Object.fromEntries(EXPORT_TABLE_KEYS.map((k) => [k, tables[k]]))
+    )
+    const hashBuffer = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(canonical)
+    )
+    const hash = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+
+    const payload: ExportPayload = {
       exportedAt: new Date().toISOString(),
       version: "1.0.0",
-      schemaVersion: 1,
-      teams,
-      players,
-      matches,
-      tournaments,
-      battingStats,
-      bowlingStats,
+      schemaVersion: 3,
+      integrity: { algorithm: "sha256", hash },
+      ...tables,
     }
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -163,7 +179,12 @@ function SettingsPage() {
     pickAndParseFile(
       (data) => {
         const errors = validateImportPayload(data)
-        const TABLES = ["teams", "players", "matches", "tournaments", "battingStats", "bowlingStats"] as const
+        const TABLES = [
+          "teams", "players", "matches", "tournaments", "battingStats", "bowlingStats",
+          "settings", "fifaPlayers", "fifaMatches",
+          "dominoPlayers", "dominoTeams", "dominoMatches", "dominoTournaments",
+          "trumpPlayers", "trumpTeams", "trumpMatches", "trumpTournaments",
+        ] as const
         const counts = Object.fromEntries(
           TABLES.map((t) => [t, Array.isArray(data[t]) ? (data[t] as unknown[]).length : 0])
         )
@@ -173,21 +194,48 @@ function SettingsPage() {
     )
   }
 
-  function handleImportDirect() {
+  function handleImportDirect(mode: ImportMode = "replace") {
     pickAndParseFile(
       async (data) => {
-        // Warn about schema version mismatch but don't block
-        if (data.schemaVersion !== undefined && data.schemaVersion !== 1) {
+        // Warn about schema version mismatch but don't block (accept v1-v3)
+        const exportedVersion = typeof data.schemaVersion === "number" ? data.schemaVersion : 1
+        if (exportedVersion > 3) {
           const proceed = window.confirm(
-            `This backup was exported with schema version ${data.schemaVersion}. ` +
-            `Current app uses version 1. Rows may not import correctly. Continue?`
+            `This backup was exported with schema version ${exportedVersion}. ` +
+            `Current app uses version 3. Rows may not import correctly. Continue?`
           )
           if (!proceed) return
         }
 
+        // Integrity hash verification (non-blocking — warn and let user decide)
+        if (
+          data.integrity &&
+          typeof data.integrity === "object" &&
+          (data.integrity as Record<string, unknown>).algorithm === "sha256" &&
+          typeof (data.integrity as Record<string, unknown>).hash === "string"
+        ) {
+          const canonical = JSON.stringify(
+            Object.fromEntries(EXPORT_TABLE_KEYS.map((k) => [k, data[k] ?? []]))
+          )
+          const hashBuffer = await crypto.subtle.digest(
+            "SHA-256",
+            new TextEncoder().encode(canonical)
+          )
+          const computedHash = Array.from(new Uint8Array(hashBuffer))
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("")
+          const storedHash = (data.integrity as Record<string, unknown>).hash as string
+          if (computedHash !== storedHash) {
+            const proceed = window.confirm(
+              "Warning: this backup's integrity hash does not match its contents. " +
+              "The file may have been edited or corrupted. Import anyway?"
+            )
+            if (!proceed) return
+          }
+        }
+
         // Validate each table's data is an array of objects before writing
-        const tables = ["teams", "players", "matches", "tournaments", "battingStats", "bowlingStats"] as const
-        for (const table of tables) {
+        for (const table of EXPORT_TABLE_KEYS) {
           if (data[table] !== undefined && !isArrayOfObjects(data[table])) {
             alert(`Import failed: "${table}" must be an array of objects.`)
             return
@@ -204,17 +252,54 @@ function SettingsPage() {
         try {
           await db.transaction(
             "rw",
-            [db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats],
+            [
+              db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats,
+              db.fifaPlayers, db.fifaMatches,
+              db.dominoPlayers, db.dominoTeams, db.dominoMatches, db.dominoTournaments,
+              db.trumpPlayers, db.trumpTeams, db.trumpMatches, db.trumpTournaments,
+              db.settings,
+            ],
             async () => {
-              if (isArrayOfObjects(data.teams) && data.teams.length) await db.teams.bulkPut(data.teams as never)
-              if (isArrayOfObjects(data.players) && data.players.length) await db.players.bulkPut(data.players as never)
-              if (isArrayOfObjects(data.matches) && data.matches.length) await db.matches.bulkPut(data.matches as never)
-              if (isArrayOfObjects(data.tournaments) && data.tournaments.length)
-                await db.tournaments.bulkPut(data.tournaments as never)
-              if (isArrayOfObjects(data.battingStats) && data.battingStats.length)
-                await db.battingStats.bulkPut(data.battingStats as never)
-              if (isArrayOfObjects(data.bowlingStats) && data.bowlingStats.length)
-                await db.bowlingStats.bulkPut(data.bowlingStats as never)
+              // Helper: write records according to the selected import mode.
+              // replace = bulkPut (upsert, overwrites existing records by primary key)
+              // merge   = bulkAdd only records whose id is not already in the DB
+              interface BulkTable {
+                bulkPut(items: never[]): Promise<unknown>
+                bulkAdd(items: never[]): Promise<unknown>
+                toCollection(): { primaryKeys(): Promise<unknown[]> }
+              }
+              async function writeTable(table: BulkTable, rows: unknown[]) {
+                if (!isArrayOfObjects(rows) || rows.length === 0) return
+                if (mode === "replace") {
+                  await table.bulkPut(rows as never)
+                } else {
+                  const existingIds = new Set(
+                    await table.toCollection().primaryKeys() as string[]
+                  )
+                  const newRows = (rows as Array<{ id: string }>).filter(
+                    (r) => !existingIds.has(r.id)
+                  )
+                  if (newRows.length) await table.bulkAdd(newRows as never)
+                }
+              }
+
+              await writeTable(db.teams, (data.teams as unknown[]) ?? [])
+              await writeTable(db.players, (data.players as unknown[]) ?? [])
+              await writeTable(db.matches, (data.matches as unknown[]) ?? [])
+              await writeTable(db.tournaments, (data.tournaments as unknown[]) ?? [])
+              await writeTable(db.battingStats, (data.battingStats as unknown[]) ?? [])
+              await writeTable(db.bowlingStats, (data.bowlingStats as unknown[]) ?? [])
+              await writeTable(db.fifaPlayers, (data.fifaPlayers as unknown[]) ?? [])
+              await writeTable(db.fifaMatches, (data.fifaMatches as unknown[]) ?? [])
+              await writeTable(db.dominoPlayers, (data.dominoPlayers as unknown[]) ?? [])
+              await writeTable(db.dominoTeams, (data.dominoTeams as unknown[]) ?? [])
+              await writeTable(db.dominoMatches, (data.dominoMatches as unknown[]) ?? [])
+              await writeTable(db.dominoTournaments, (data.dominoTournaments as unknown[]) ?? [])
+              await writeTable(db.trumpPlayers, (data.trumpPlayers as unknown[]) ?? [])
+              await writeTable(db.trumpTeams, (data.trumpTeams as unknown[]) ?? [])
+              await writeTable(db.trumpMatches, (data.trumpMatches as unknown[]) ?? [])
+              await writeTable(db.trumpTournaments, (data.trumpTournaments as unknown[]) ?? [])
+              await writeTable(db.settings, (data.settings as unknown[]) ?? [])
             }
           )
           alert("Import successful!")
@@ -231,7 +316,13 @@ function SettingsPage() {
   async function handleClearData() {
     await db.transaction(
       "rw",
-      [db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats],
+      [
+        db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats,
+        db.fifaPlayers, db.fifaMatches,
+        db.dominoPlayers, db.dominoTeams, db.dominoMatches, db.dominoTournaments,
+        db.trumpPlayers, db.trumpTeams, db.trumpMatches, db.trumpTournaments,
+        db.settings,
+      ],
       async () => {
         await Promise.all([
           db.teams.clear(),
@@ -240,6 +331,17 @@ function SettingsPage() {
           db.tournaments.clear(),
           db.battingStats.clear(),
           db.bowlingStats.clear(),
+          db.fifaPlayers.clear(),
+          db.fifaMatches.clear(),
+          db.dominoPlayers.clear(),
+          db.dominoTeams.clear(),
+          db.dominoMatches.clear(),
+          db.dominoTournaments.clear(),
+          db.trumpPlayers.clear(),
+          db.trumpTeams.clear(),
+          db.trumpMatches.clear(),
+          db.trumpTournaments.clear(),
+          db.settings.clear(),
         ])
       }
     )
@@ -254,6 +356,23 @@ function SettingsPage() {
         <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
+  }
+
+  async function handleSave(patch: Partial<AppSettings>) {
+    setIsSaving(true)
+    await saveSettings(patch)
+    setIsSaving(false)
+  }
+
+  function updateSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
+    setLocalSettings((prev) => {
+      const nextSettings: AppSettings = { ...(prev ?? settings), [key]: value } as AppSettings
+      return nextSettings
+    })
+    void handleSave({ [key]: value })
+    if (key === "theme") {
+      setTheme(value as AppSettings["theme"])
+    }
   }
 
   const defaultRules = DEFAULT_RULES[settings.defaultFormat]
@@ -625,10 +744,46 @@ function SettingsPage() {
       <AlertDialog open={showImportConfirm} onOpenChange={(open) => !open && setShowImportConfirm(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Back up before importing?</AlertDialogTitle>
+            <AlertDialogTitle>Import data</AlertDialogTitle>
             <AlertDialogDescription>
-              Importing will merge data into your existing records. Creating a backup first lets you
-              restore if anything goes wrong.
+              <span className="block space-y-3">
+                {/* Import mode selector */}
+                <span className="grid grid-cols-2 gap-2 pt-1 block">
+                  <button
+                    type="button"
+                    onClick={() => setImportMode("replace")}
+                    className={`flex items-start gap-2 rounded-lg border p-3 text-left transition-colors ${
+                      importMode === "replace"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:bg-muted/50"
+                    }`}
+                  >
+                    <RefreshCw className="size-4 shrink-0 mt-0.5 text-primary" />
+                    <span>
+                      <span className="block text-xs font-semibold text-foreground">Replace</span>
+                      <span className="block text-[10px] text-muted-foreground">Overwrite existing records</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportMode("merge")}
+                    className={`flex items-start gap-2 rounded-lg border p-3 text-left transition-colors ${
+                      importMode === "merge"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:bg-muted/50"
+                    }`}
+                  >
+                    <GitMerge className="size-4 shrink-0 mt-0.5 text-primary" />
+                    <span>
+                      <span className="block text-xs font-semibold text-foreground">Merge</span>
+                      <span className="block text-[10px] text-muted-foreground">Add new records only</span>
+                    </span>
+                  </button>
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Creating a backup first lets you restore if anything goes wrong.
+                </span>
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -639,7 +794,7 @@ function SettingsPage() {
               className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
               onClick={() => {
                 setShowImportConfirm(false)
-                handleImportDirect()
+                handleImportDirect(importMode)
               }}
             >
               Skip backup — Import
@@ -649,7 +804,7 @@ function SettingsPage() {
                 setShowImportConfirm(false)
                 handleExport()
                 setTimeout(() => {
-                  handleImportDirect()
+                  handleImportDirect(importMode)
                 }, 500)
               }}
             >

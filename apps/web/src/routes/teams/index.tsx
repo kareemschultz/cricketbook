@@ -188,7 +188,7 @@ function EditTeamDialog({ team, onClose }: EditTeamDialogProps) {
     setShortName(team?.shortName ?? "")
     setColorHex(team?.colorHex ?? TEAM_COLORS[0])
     setError(null)
-  }, [team?.id])
+  }, [team?.id, team?.name, team?.shortName, team?.colorHex])
 
   async function handleSave() {
     if (!team || !name.trim()) return

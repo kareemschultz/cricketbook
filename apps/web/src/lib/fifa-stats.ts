@@ -92,7 +92,7 @@ export function computeFifaH2H(
     let opponentId: string | null = null
     let scored = 0
     let conceded = 0
-    let result: "W" | "D" | "L"
+    const result: "W" | "D" | "L" = scored > conceded ? "W" : scored < conceded ? "L" : "D"
 
     if (match.player1Id === playerId) {
       opponentId = match.player2Id
@@ -106,7 +106,6 @@ export function computeFifaH2H(
       continue
     }
 
-    result = scored > conceded ? "W" : scored < conceded ? "L" : "D"
     const opponent = playerMap.get(opponentId)
     if (!opponent) continue
 

@@ -6,6 +6,7 @@ import { motion } from "framer-motion"
 import { useState } from "react"
 import { db } from "@/db/index"
 import { computeDominoTeamStats } from "@/lib/dominoes-stats"
+import { computeDominoTournamentStandings } from "@/lib/domino-tournaments"
 import { seedDemoDominoData } from "@/lib/demo-seed"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
@@ -139,13 +140,16 @@ function RecentMatches() {
   const data = useLiveQuery(async () => {
     const matches = await db.dominoMatches.orderBy("date").reverse().limit(5).toArray()
     const teams = await db.dominoTeams.toArray()
+    const tournaments = await db.dominoTournaments.toArray()
     const teamMap = new Map(teams.map((t) => [t.id, t]))
+    const tournamentMap = new Map(tournaments.map((tournament) => [tournament.id, tournament]))
     return matches
       .filter((m) => m.status === "completed")
       .map((m) => ({
         ...m,
         t1: teamMap.get(m.team1Id),
         t2: teamMap.get(m.team2Id),
+        tournament: m.tournamentId ? tournamentMap.get(m.tournamentId) : undefined,
       }))
   })
 
@@ -176,6 +180,9 @@ function RecentMatches() {
                     <p className="text-[10px] text-emerald-500 font-medium">
                       {winner?.name} wins{isSixLove ? " (6-love!)" : ""}
                     </p>
+                    {m.tournament && (
+                      <p className="text-[10px] text-amber-500 font-medium mt-1">{m.tournament.name}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -188,6 +195,109 @@ function RecentMatches() {
         onClick={() => navigate({ to: "/dominoes/matches" })}
       >
         See all matches &rarr;
+      </button>
+    </div>
+  )
+}
+
+function TournamentSnapshot() {
+  const navigate = useNavigate()
+
+  const data = useLiveQuery(async () => {
+    const tournaments = await db.dominoTournaments.toArray()
+    const teams = await db.dominoTeams.toArray()
+    const matches = await db.dominoMatches.toArray()
+
+    return tournaments
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 3)
+      .map((tournament) => {
+        const standings = computeDominoTournamentStandings(tournament, teams, matches)
+        const leader = standings[0]
+        const completedFixtures = tournament.fixtures.filter((fixture) => fixture.result !== null).length
+        const champion = tournament.championTeamId
+          ? teams.find((team) => team.id === tournament.championTeamId)
+          : undefined
+        return {
+          tournament,
+          completedFixtures,
+          leader,
+          champion,
+        }
+      })
+  })
+
+  if (!data) {
+    return (
+      <div className="space-y-2">
+        {[1, 2].map((item) => (
+          <div key={item} className="h-20 rounded-lg bg-muted animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+
+  if (data.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center space-y-3">
+          <Trophy className="size-8 text-muted-foreground mx-auto" />
+          <p className="text-sm text-muted-foreground">Create tournaments to track fixtures and champions</p>
+          <Button variant="outline" size="sm" onClick={() => navigate({ to: "/dominoes/tournaments" })}>
+            Open Tournaments
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {data.map(({ tournament, completedFixtures, leader, champion }) => (
+        <button
+          key={tournament.id}
+          className="w-full text-left"
+          onClick={() =>
+            navigate({
+              to: "/dominoes/tournaments/$tournamentId",
+              params: { tournamentId: tournament.id },
+            })
+          }
+        >
+          <Card className="hover:bg-muted/50 transition-colors">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{tournament.name}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {tournament.format === "ROUND_ROBIN" ? "Round Robin" : "Knockout"} · {completedFixtures}/{tournament.fixtures.length} fixtures
+                  </p>
+                  <p className="text-[10px] mt-1 text-amber-500 font-medium">
+                    {champion
+                      ? `Champion: ${champion.name}`
+                      : leader
+                        ? `Leader: ${leader.teamName}`
+                        : "Waiting for teams"}
+                  </p>
+                </div>
+                <span className={cn(
+                  "rounded-full border px-2 py-0.5 text-[10px]",
+                  tournament.status === "completed" && "border-border bg-muted text-muted-foreground",
+                  tournament.status === "live" && "border-emerald-500/30 bg-emerald-500/20 text-emerald-400",
+                  tournament.status === "upcoming" && "border-blue-500/30 bg-blue-500/20 text-blue-400",
+                )}>
+                  {tournament.status}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </button>
+      ))}
+      <button
+        className="text-xs text-primary font-medium w-full text-center py-1"
+        onClick={() => navigate({ to: "/dominoes/tournaments" })}
+      >
+        See all tournaments &rarr;
       </button>
     </div>
   )
@@ -246,7 +356,11 @@ function DominoesHomePage() {
             <p className="text-xs text-muted-foreground">{format(new Date(), "EEEE, d MMMM yyyy")}</p>
           </div>
           <motion.div whileTap={{ scale: 0.95 }}>
-            <Button size="sm" onClick={() => navigate({ to: "/dominoes/matches/new" })} className="gap-1">
+            <Button
+              size="sm"
+              onClick={() => navigate({ to: "/dominoes/matches/new", search: { tournamentId: undefined, fixtureId: undefined } })}
+              className="gap-1"
+            >
               <Plus className="size-4" />
               Record
             </Button>
@@ -267,6 +381,11 @@ function DominoesHomePage() {
         <section>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Recent Matches</h2>
           <RecentMatches />
+        </section>
+
+        <section>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Tournaments</h2>
+          <TournamentSnapshot />
         </section>
       </div>
     </div>

@@ -40,16 +40,15 @@ import {
 } from "@workspace/ui/components/sheet"
 import { cn } from "@workspace/ui/lib/utils"
 
-import type { Player, BatsmanEntry, BowlerEntry } from "@/types/cricket"
+import type { Match, Player, BatsmanEntry, BowlerEntry } from "@/types/cricket"
 
 // ─── component ────────────────────────────────────────────────────────────────
 
-function ScoringPage() {
+function ScoringPage({ match }: { match: Match }) {
   const navigate = useNavigate()
   const haptic = useHaptic()
 
   const {
-    match,
     currentInningsIndex,
     onStrikeBatsmanId,
     offStrikeBatsmanId,
@@ -98,15 +97,8 @@ function ScoringPage() {
     setScoreFlash(type)
   }
 
-  if (!match) {
-    // ScoringLoader guarantees match is set before rendering ScoringPage,
-    // but guard here as a safety net
-    return null
-  }
-
-  const innings = match.innings[currentInningsIndex]
+  const innings = match.innings[currentInningsIndex] ?? match.innings[0]!
   const rules = match.rules
-  if (!innings) return null
 
   const isSecondInnings = currentInningsIndex > 0
   const currentOver = innings.totalOvers // completed overs count = current over index
@@ -163,8 +155,7 @@ function ScoringPage() {
             innings.totalRuns
           )
         : null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [innings.ballLog, striker?.playerId, nonStriker?.playerId, innings.totalWickets, innings.totalRuns]
+    [innings.ballLog, innings.totalRuns, innings.totalWickets, striker, nonStriker]
   )
 
   // Available batsmen for new batsman sheet
@@ -241,7 +232,13 @@ function ScoringPage() {
   // Guard: need striker + bowler to score, and innings must be live
   // ─────────────────────────────────────────────────────────────────────────
 
-  const canScore = !!onStrikeBatsmanId && !!currentBowlerId && !isProcessing && !inningsIsOver
+  const canBatAlone =
+    rules.lastManStands &&
+    innings.totalWickets >= rules.maxWickets - 1
+  const hasRequiredBatters =
+    !!onStrikeBatsmanId &&
+    (!!offStrikeBatsmanId || canBatAlone)
+  const canScore = hasRequiredBatters && !!currentBowlerId && !isProcessing && !inningsIsOver
 
   // ── Next required action (persistent strip) ───────────────────────────────
   type NextActionType = {
@@ -269,7 +266,7 @@ function ScoringPage() {
             : "Select new batsman",
         disabled: isPlayersLoading,
       }
-    if (!offStrikeBatsmanId)
+    if (!offStrikeBatsmanId && !canBatAlone)
       return {
         kind: "batsman" as const,
         label: isPlayersLoading
@@ -507,6 +504,23 @@ function ScoringPage() {
         )}
       </AnimatePresence>
 
+      {/* ── Disabled reason hint — shown when scoring is blocked and nextAction doesn't cover it ── */}
+      {!canScore && !nextAction && (
+        <div className="px-3 py-1.5 text-xs text-muted-foreground text-center italic">
+          {inningsIsOver && isLastInnings
+            ? "Match complete"
+            : inningsIsOver
+              ? "Innings complete"
+              : isProcessing
+                ? "Processing…"
+                : !onStrikeBatsmanId
+                  ? "Select a striker to continue"
+                  : !offStrikeBatsmanId && !canBatAlone
+                    ? "Select a non-striker to continue"
+                  : "Select a bowler to continue"}
+        </div>
+      )}
+
       {/* ── Scoring buttons ── */}
       <div className="flex-1 flex flex-col justify-end px-2 pb-2 gap-1.5 pt-1.5">
 
@@ -718,7 +732,6 @@ function ScoringPage() {
           onConfirm={handleWicketConfirm}
           striker={striker}
           nonStriker={nonStriker}
-          bowler={currentBowler}
           allPlayersInField={fieldingTeamPlayers}
           isFreeHit={isFreeHit}
         />
@@ -876,7 +889,7 @@ function ScoringLoader() {
     )
   }
 
-  return <ScoringPage />
+  return <ScoringPage match={match} />
 }
 
 export const Route = createFileRoute("/scoring")({

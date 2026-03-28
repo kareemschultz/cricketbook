@@ -57,6 +57,13 @@ function getNextDeliveryNumber(ballLog: Ball[]): number {
 export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
   const { recordBall, undoLastBall } = useScoringStore()
 
+  function hasRequiredBatters() {
+    const canBatAlone =
+      ctx.rules.lastManStands &&
+      ctx.innings.totalWickets >= ctx.rules.maxWickets - 1
+    return !!ctx.onStrikeBatsmanId && (!!ctx.offStrikeBatsmanId || canBatAlone)
+  }
+
   // ── Fresh post-ball check (reads store directly to avoid stale closure) ──────
 
   function checkPostBall() {
@@ -111,7 +118,7 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
 
   const handleRun = useCallback(
     async (runs: number) => {
-      if (!ctx.onStrikeBatsmanId || !ctx.currentBowlerId || ctx.isProcessing) return
+      if (!hasRequiredBatters() || !ctx.currentBowlerId || ctx.isProcessing) return
       ui.haptic()
       const ball = createBall(buildCoreBallInput({ runs, batsmanRuns: runs }))
       await recordBall(ball)
@@ -119,14 +126,17 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
       else if (runs === 6) ui.triggerFlash("six")
       checkPostBall()
     },
+    // recordBall is a stable Zustand action. buildCoreBallInput and checkPostBall
+    // are hook-local functions — adding them would re-create the callback on every
+    // render, defeating the purpose of useCallback. Only reactive ctx values needed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ctx.onStrikeBatsmanId, ctx.currentBowlerId, ctx.isProcessing, ctx.isFreeHit, ctx.currentOver, ctx.innings]
+    [ctx.onStrikeBatsmanId, ctx.offStrikeBatsmanId, ctx.currentBowlerId, ctx.isProcessing, ctx.isFreeHit, ctx.currentOver, ctx.innings, ctx.rules.lastManStands, ctx.rules.maxWickets, recordBall]
   )
 
   // ── Wide handler ──────────────────────────────────────────────────────────────
 
   async function handleWide(extraRuns: number) {
-    if (!ctx.onStrikeBatsmanId || !ctx.currentBowlerId || ctx.isProcessing) return
+    if (!hasRequiredBatters() || !ctx.currentBowlerId || ctx.isProcessing) return
     ui.haptic()
     const wideRuns = ctx.rules.wideRuns + extraRuns
     const ball = createBall(buildCoreBallInput({
@@ -140,7 +150,7 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
   // ── No-ball handler ───────────────────────────────────────────────────────────
 
   async function handleNoBall(batRuns: number) {
-    if (!ctx.onStrikeBatsmanId || !ctx.currentBowlerId || ctx.isProcessing) return
+    if (!hasRequiredBatters() || !ctx.currentBowlerId || ctx.isProcessing) return
     ui.haptic()
     const nbRuns = ctx.rules.noBallRuns
     const totalRuns = nbRuns + batRuns
@@ -157,7 +167,7 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
   // ── Bye / leg-bye handler ─────────────────────────────────────────────────────
 
   async function handleBye(runs: number, isLegBye: boolean) {
-    if (!ctx.onStrikeBatsmanId || !ctx.currentBowlerId || ctx.isProcessing) return
+    if (!hasRequiredBatters() || !ctx.currentBowlerId || ctx.isProcessing) return
     ui.haptic()
     const ball = createBall(buildCoreBallInput({
       runs, batsmanRuns: 0, isExtra: true,
@@ -171,7 +181,7 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
   // ── Overthrow handler ─────────────────────────────────────────────────────────
 
   async function handleOverthrow(totalRuns: number) {
-    if (!ctx.onStrikeBatsmanId || !ctx.currentBowlerId || ctx.isProcessing) return
+    if (!hasRequiredBatters() || !ctx.currentBowlerId || ctx.isProcessing) return
     ui.haptic()
     const ball = createBall(buildCoreBallInput({ runs: totalRuns, batsmanRuns: totalRuns }))
     ball.overthrows = totalRuns
@@ -187,7 +197,7 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
     dismissedPlayerId: string
     fielderId?: string
   }) {
-    if (!ctx.onStrikeBatsmanId || !ctx.currentBowlerId || ctx.isProcessing) return
+    if (!hasRequiredBatters() || !ctx.currentBowlerId || ctx.isProcessing) return
     ui.setShowWicketDialog(false)
     ui.haptic()
 
@@ -255,10 +265,14 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
         overs: 0, balls: 0, maidens: 0, runs: 0, wickets: 0,
         economy: 0, dots: 0, wides: 0, noBalls: 0, legalDeliveries: 0,
       })
+      updated.innings[ctx.currentInningsIndex].currentBowlerId = playerId
       await db.matches.put(updated)
       useScoringStore.setState({ match: updated, currentBowlerId: playerId })
     } else {
-      useScoringStore.setState({ currentBowlerId: playerId })
+      const updated = structuredClone(latestMatch)
+      updated.innings[ctx.currentInningsIndex].currentBowlerId = playerId
+      await db.matches.put(updated)
+      useScoringStore.setState({ match: updated, currentBowlerId: playerId })
     }
 
     ui.setShowNewBowlerSheet(false)
@@ -277,6 +291,12 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
 
     const targetInnings = latestMatch.innings[ctx.currentInningsIndex]
     const alreadyInCard = targetInnings.battingCard.some((e) => e.playerId === playerId)
+    const targetSlot =
+      !ctx.onStrikeBatsmanId
+        ? "onStrike"
+        : !ctx.offStrikeBatsmanId
+          ? "offStrike"
+          : "onStrike"
 
     const updated = structuredClone(latestMatch)
     if (!alreadyInCard) {
@@ -292,8 +312,18 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
       })
     }
 
+    if (targetSlot === "onStrike") {
+      updated.innings[ctx.currentInningsIndex].currentStrikerId = playerId
+    } else {
+      updated.innings[ctx.currentInningsIndex].currentNonStrikerId = playerId
+    }
+
     await db.matches.put(updated)
-    useScoringStore.setState({ match: updated, onStrikeBatsmanId: playerId })
+    useScoringStore.setState(
+      targetSlot === "onStrike"
+        ? { match: updated, onStrikeBatsmanId: playerId }
+        : { match: updated, offStrikeBatsmanId: playerId }
+    )
     ui.setShowNewBatsmanSheet(false)
 
     if (latestStore.currentBowlerId === null) {
@@ -318,6 +348,9 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
       battingTeamId: newBattingTeamId,
       bowlingTeamId: newBowlingTeamId,
       status: "live",
+      currentStrikerId: null,
+      currentNonStrikerId: null,
+      currentBowlerId: null,
       totalRuns: 0,
       totalWickets: 0,
       totalOvers: 0,

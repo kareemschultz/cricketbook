@@ -26,15 +26,19 @@ import { Route as TeamsTeamIdRouteImport } from './routes/teams/$teamId'
 import { Route as StatsPlayerIdRouteImport } from './routes/stats/$playerId'
 import { Route as ScorecardMatchIdRouteImport } from './routes/scorecard.$matchId'
 import { Route as ChartsMatchIdRouteImport } from './routes/charts.$matchId'
+import { Route as TrumpTournamentsIndexRouteImport } from './routes/trump/tournaments/index'
 import { Route as TrumpTeamsIndexRouteImport } from './routes/trump/teams/index'
 import { Route as TrumpMatchesIndexRouteImport } from './routes/trump/matches/index'
 import { Route as FifaPlayersIndexRouteImport } from './routes/fifa/players/index'
 import { Route as FifaMatchesIndexRouteImport } from './routes/fifa/matches/index'
+import { Route as DominoesTournamentsIndexRouteImport } from './routes/dominoes/tournaments/index'
 import { Route as DominoesTeamsIndexRouteImport } from './routes/dominoes/teams/index'
 import { Route as DominoesMatchesIndexRouteImport } from './routes/dominoes/matches/index'
+import { Route as TrumpTournamentsTournamentIdRouteImport } from './routes/trump/tournaments/$tournamentId'
 import { Route as TrumpMatchesNewRouteImport } from './routes/trump/matches/new'
 import { Route as FifaPlayersPlayerIdRouteImport } from './routes/fifa/players/$playerId'
 import { Route as FifaMatchesNewRouteImport } from './routes/fifa/matches/new'
+import { Route as DominoesTournamentsTournamentIdRouteImport } from './routes/dominoes/tournaments/$tournamentId'
 import { Route as DominoesMatchesNewRouteImport } from './routes/dominoes/matches/new'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -122,6 +126,11 @@ const ChartsMatchIdRoute = ChartsMatchIdRouteImport.update({
   path: '/charts/$matchId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrumpTournamentsIndexRoute = TrumpTournamentsIndexRouteImport.update({
+  id: '/trump/tournaments/',
+  path: '/trump/tournaments/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TrumpTeamsIndexRoute = TrumpTeamsIndexRouteImport.update({
   id: '/trump/teams/',
   path: '/trump/teams/',
@@ -142,6 +151,12 @@ const FifaMatchesIndexRoute = FifaMatchesIndexRouteImport.update({
   path: '/fifa/matches/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DominoesTournamentsIndexRoute =
+  DominoesTournamentsIndexRouteImport.update({
+    id: '/dominoes/tournaments/',
+    path: '/dominoes/tournaments/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DominoesTeamsIndexRoute = DominoesTeamsIndexRouteImport.update({
   id: '/dominoes/teams/',
   path: '/dominoes/teams/',
@@ -152,6 +167,12 @@ const DominoesMatchesIndexRoute = DominoesMatchesIndexRouteImport.update({
   path: '/dominoes/matches/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrumpTournamentsTournamentIdRoute =
+  TrumpTournamentsTournamentIdRouteImport.update({
+    id: '/trump/tournaments/$tournamentId',
+    path: '/trump/tournaments/$tournamentId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const TrumpMatchesNewRoute = TrumpMatchesNewRouteImport.update({
   id: '/trump/matches/new',
   path: '/trump/matches/new',
@@ -167,6 +188,12 @@ const FifaMatchesNewRoute = FifaMatchesNewRouteImport.update({
   path: '/fifa/matches/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DominoesTournamentsTournamentIdRoute =
+  DominoesTournamentsTournamentIdRouteImport.update({
+    id: '/dominoes/tournaments/$tournamentId',
+    path: '/dominoes/tournaments/$tournamentId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DominoesMatchesNewRoute = DominoesMatchesNewRouteImport.update({
   id: '/dominoes/matches/new',
   path: '/dominoes/matches/new',
@@ -192,15 +219,19 @@ export interface FileRoutesByFullPath {
   '/tournaments/': typeof TournamentsIndexRoute
   '/trump/': typeof TrumpIndexRoute
   '/dominoes/matches/new': typeof DominoesMatchesNewRoute
+  '/dominoes/tournaments/$tournamentId': typeof DominoesTournamentsTournamentIdRoute
   '/fifa/matches/new': typeof FifaMatchesNewRoute
   '/fifa/players/$playerId': typeof FifaPlayersPlayerIdRoute
   '/trump/matches/new': typeof TrumpMatchesNewRoute
+  '/trump/tournaments/$tournamentId': typeof TrumpTournamentsTournamentIdRoute
   '/dominoes/matches/': typeof DominoesMatchesIndexRoute
   '/dominoes/teams/': typeof DominoesTeamsIndexRoute
+  '/dominoes/tournaments/': typeof DominoesTournamentsIndexRoute
   '/fifa/matches/': typeof FifaMatchesIndexRoute
   '/fifa/players/': typeof FifaPlayersIndexRoute
   '/trump/matches/': typeof TrumpMatchesIndexRoute
   '/trump/teams/': typeof TrumpTeamsIndexRoute
+  '/trump/tournaments/': typeof TrumpTournamentsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -221,15 +252,19 @@ export interface FileRoutesByTo {
   '/tournaments': typeof TournamentsIndexRoute
   '/trump': typeof TrumpIndexRoute
   '/dominoes/matches/new': typeof DominoesMatchesNewRoute
+  '/dominoes/tournaments/$tournamentId': typeof DominoesTournamentsTournamentIdRoute
   '/fifa/matches/new': typeof FifaMatchesNewRoute
   '/fifa/players/$playerId': typeof FifaPlayersPlayerIdRoute
   '/trump/matches/new': typeof TrumpMatchesNewRoute
+  '/trump/tournaments/$tournamentId': typeof TrumpTournamentsTournamentIdRoute
   '/dominoes/matches': typeof DominoesMatchesIndexRoute
   '/dominoes/teams': typeof DominoesTeamsIndexRoute
+  '/dominoes/tournaments': typeof DominoesTournamentsIndexRoute
   '/fifa/matches': typeof FifaMatchesIndexRoute
   '/fifa/players': typeof FifaPlayersIndexRoute
   '/trump/matches': typeof TrumpMatchesIndexRoute
   '/trump/teams': typeof TrumpTeamsIndexRoute
+  '/trump/tournaments': typeof TrumpTournamentsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -251,15 +286,19 @@ export interface FileRoutesById {
   '/tournaments/': typeof TournamentsIndexRoute
   '/trump/': typeof TrumpIndexRoute
   '/dominoes/matches/new': typeof DominoesMatchesNewRoute
+  '/dominoes/tournaments/$tournamentId': typeof DominoesTournamentsTournamentIdRoute
   '/fifa/matches/new': typeof FifaMatchesNewRoute
   '/fifa/players/$playerId': typeof FifaPlayersPlayerIdRoute
   '/trump/matches/new': typeof TrumpMatchesNewRoute
+  '/trump/tournaments/$tournamentId': typeof TrumpTournamentsTournamentIdRoute
   '/dominoes/matches/': typeof DominoesMatchesIndexRoute
   '/dominoes/teams/': typeof DominoesTeamsIndexRoute
+  '/dominoes/tournaments/': typeof DominoesTournamentsIndexRoute
   '/fifa/matches/': typeof FifaMatchesIndexRoute
   '/fifa/players/': typeof FifaPlayersIndexRoute
   '/trump/matches/': typeof TrumpMatchesIndexRoute
   '/trump/teams/': typeof TrumpTeamsIndexRoute
+  '/trump/tournaments/': typeof TrumpTournamentsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -282,15 +321,19 @@ export interface FileRouteTypes {
     | '/tournaments/'
     | '/trump/'
     | '/dominoes/matches/new'
+    | '/dominoes/tournaments/$tournamentId'
     | '/fifa/matches/new'
     | '/fifa/players/$playerId'
     | '/trump/matches/new'
+    | '/trump/tournaments/$tournamentId'
     | '/dominoes/matches/'
     | '/dominoes/teams/'
+    | '/dominoes/tournaments/'
     | '/fifa/matches/'
     | '/fifa/players/'
     | '/trump/matches/'
     | '/trump/teams/'
+    | '/trump/tournaments/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -311,15 +354,19 @@ export interface FileRouteTypes {
     | '/tournaments'
     | '/trump'
     | '/dominoes/matches/new'
+    | '/dominoes/tournaments/$tournamentId'
     | '/fifa/matches/new'
     | '/fifa/players/$playerId'
     | '/trump/matches/new'
+    | '/trump/tournaments/$tournamentId'
     | '/dominoes/matches'
     | '/dominoes/teams'
+    | '/dominoes/tournaments'
     | '/fifa/matches'
     | '/fifa/players'
     | '/trump/matches'
     | '/trump/teams'
+    | '/trump/tournaments'
   id:
     | '__root__'
     | '/'
@@ -340,15 +387,19 @@ export interface FileRouteTypes {
     | '/tournaments/'
     | '/trump/'
     | '/dominoes/matches/new'
+    | '/dominoes/tournaments/$tournamentId'
     | '/fifa/matches/new'
     | '/fifa/players/$playerId'
     | '/trump/matches/new'
+    | '/trump/tournaments/$tournamentId'
     | '/dominoes/matches/'
     | '/dominoes/teams/'
+    | '/dominoes/tournaments/'
     | '/fifa/matches/'
     | '/fifa/players/'
     | '/trump/matches/'
     | '/trump/teams/'
+    | '/trump/tournaments/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -370,15 +421,19 @@ export interface RootRouteChildren {
   TournamentsIndexRoute: typeof TournamentsIndexRoute
   TrumpIndexRoute: typeof TrumpIndexRoute
   DominoesMatchesNewRoute: typeof DominoesMatchesNewRoute
+  DominoesTournamentsTournamentIdRoute: typeof DominoesTournamentsTournamentIdRoute
   FifaMatchesNewRoute: typeof FifaMatchesNewRoute
   FifaPlayersPlayerIdRoute: typeof FifaPlayersPlayerIdRoute
   TrumpMatchesNewRoute: typeof TrumpMatchesNewRoute
+  TrumpTournamentsTournamentIdRoute: typeof TrumpTournamentsTournamentIdRoute
   DominoesMatchesIndexRoute: typeof DominoesMatchesIndexRoute
   DominoesTeamsIndexRoute: typeof DominoesTeamsIndexRoute
+  DominoesTournamentsIndexRoute: typeof DominoesTournamentsIndexRoute
   FifaMatchesIndexRoute: typeof FifaMatchesIndexRoute
   FifaPlayersIndexRoute: typeof FifaPlayersIndexRoute
   TrumpMatchesIndexRoute: typeof TrumpMatchesIndexRoute
   TrumpTeamsIndexRoute: typeof TrumpTeamsIndexRoute
+  TrumpTournamentsIndexRoute: typeof TrumpTournamentsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -502,6 +557,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChartsMatchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/trump/tournaments/': {
+      id: '/trump/tournaments/'
+      path: '/trump/tournaments'
+      fullPath: '/trump/tournaments/'
+      preLoaderRoute: typeof TrumpTournamentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/trump/teams/': {
       id: '/trump/teams/'
       path: '/trump/teams'
@@ -530,6 +592,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FifaMatchesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dominoes/tournaments/': {
+      id: '/dominoes/tournaments/'
+      path: '/dominoes/tournaments'
+      fullPath: '/dominoes/tournaments/'
+      preLoaderRoute: typeof DominoesTournamentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dominoes/teams/': {
       id: '/dominoes/teams/'
       path: '/dominoes/teams'
@@ -542,6 +611,13 @@ declare module '@tanstack/react-router' {
       path: '/dominoes/matches'
       fullPath: '/dominoes/matches/'
       preLoaderRoute: typeof DominoesMatchesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trump/tournaments/$tournamentId': {
+      id: '/trump/tournaments/$tournamentId'
+      path: '/trump/tournaments/$tournamentId'
+      fullPath: '/trump/tournaments/$tournamentId'
+      preLoaderRoute: typeof TrumpTournamentsTournamentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/trump/matches/new': {
@@ -563,6 +639,13 @@ declare module '@tanstack/react-router' {
       path: '/fifa/matches/new'
       fullPath: '/fifa/matches/new'
       preLoaderRoute: typeof FifaMatchesNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dominoes/tournaments/$tournamentId': {
+      id: '/dominoes/tournaments/$tournamentId'
+      path: '/dominoes/tournaments/$tournamentId'
+      fullPath: '/dominoes/tournaments/$tournamentId'
+      preLoaderRoute: typeof DominoesTournamentsTournamentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dominoes/matches/new': {
@@ -594,15 +677,19 @@ const rootRouteChildren: RootRouteChildren = {
   TournamentsIndexRoute: TournamentsIndexRoute,
   TrumpIndexRoute: TrumpIndexRoute,
   DominoesMatchesNewRoute: DominoesMatchesNewRoute,
+  DominoesTournamentsTournamentIdRoute: DominoesTournamentsTournamentIdRoute,
   FifaMatchesNewRoute: FifaMatchesNewRoute,
   FifaPlayersPlayerIdRoute: FifaPlayersPlayerIdRoute,
   TrumpMatchesNewRoute: TrumpMatchesNewRoute,
+  TrumpTournamentsTournamentIdRoute: TrumpTournamentsTournamentIdRoute,
   DominoesMatchesIndexRoute: DominoesMatchesIndexRoute,
   DominoesTeamsIndexRoute: DominoesTeamsIndexRoute,
+  DominoesTournamentsIndexRoute: DominoesTournamentsIndexRoute,
   FifaMatchesIndexRoute: FifaMatchesIndexRoute,
   FifaPlayersIndexRoute: FifaPlayersIndexRoute,
   TrumpMatchesIndexRoute: TrumpMatchesIndexRoute,
   TrumpTeamsIndexRoute: TrumpTeamsIndexRoute,
+  TrumpTournamentsIndexRoute: TrumpTournamentsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

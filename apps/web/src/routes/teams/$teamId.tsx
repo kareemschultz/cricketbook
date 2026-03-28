@@ -69,7 +69,6 @@ function InlineEdit({ value, onSave, className = "", inputClassName = "" }: Inli
 
   useEffect(() => {
     if (editing) {
-      setDraft(value)
       inputRef.current?.focus()
       inputRef.current?.select()
     }
@@ -123,7 +122,10 @@ function InlineEdit({ value, onSave, className = "", inputClassName = "" }: Inli
   return (
     <button
       className={`text-left hover:underline underline-offset-2 decoration-dashed decoration-muted-foreground/50 ${className}`}
-      onClick={() => setEditing(true)}
+      onClick={() => {
+        setDraft(value)
+        setEditing(true)
+      }}
     >
       {value}
     </button>

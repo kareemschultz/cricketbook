@@ -68,7 +68,8 @@ function FifaPlayerProfilePage() {
     return { player, playerStats, h2h, playerMatches, playerMap, last10 }
   })
 
-  if (!data) {
+  // undefined = still loading; null = query ran but player not found
+  if (data === undefined) {
     return (
       <div className="flex items-center justify-center h-48">
         <div className="animate-spin size-6 border-2 border-primary border-t-transparent rounded-full" />
@@ -76,7 +77,7 @@ function FifaPlayerProfilePage() {
     )
   }
 
-  if (!data.player) {
+  if (data === null) {
     return (
       <div className="px-4 py-8 text-center">
         <p className="text-muted-foreground">Player not found</p>
@@ -120,7 +121,7 @@ function FifaPlayerProfilePage() {
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate({ to: "/fifa/players" as "/fifa/players" })}
+            onClick={() => navigate({ to: "/fifa/players" as const })}
             className="size-8 rounded-full bg-muted/50 flex items-center justify-center"
           >
             <ArrowLeft className="size-4" />

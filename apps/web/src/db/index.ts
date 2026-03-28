@@ -10,8 +10,18 @@ import type {
   CricketFormat,
 } from "@/types/cricket"
 import type { FifaPlayer, FifaMatch } from "@/types/fifa"
-import type { DominoPlayer, DominoTeam, DominoMatch } from "@/types/dominoes"
-import type { TrumpPlayer, TrumpTeam, TrumpMatch } from "@/types/trump"
+import type {
+  DominoPlayer,
+  DominoTeam,
+  DominoMatch,
+  DominoTournament,
+} from "@/types/dominoes"
+import type {
+  TrumpPlayer,
+  TrumpTeam,
+  TrumpMatch,
+  TrumpTournament,
+} from "@/types/trump"
 
 // ─── Database ────────────────────────────────────────────────────────────────
 
@@ -28,9 +38,11 @@ class ScoreFlowDB extends Dexie {
   dominoPlayers!: EntityTable<DominoPlayer, "id">
   dominoTeams!: EntityTable<DominoTeam, "id">
   dominoMatches!: EntityTable<DominoMatch, "id">
+  dominoTournaments!: EntityTable<DominoTournament, "id">
   trumpPlayers!: EntityTable<TrumpPlayer, "id">
   trumpTeams!: EntityTable<TrumpTeam, "id">
   trumpMatches!: EntityTable<TrumpMatch, "id">
+  trumpTournaments!: EntityTable<TrumpTournament, "id">
 
   constructor() {
     super("CricketBookDB")
@@ -57,6 +69,13 @@ class ScoreFlowDB extends Dexie {
       trumpPlayers: "id, name, createdAt",
       trumpTeams: "id, name, player1Id, player2Id, createdAt",
       trumpMatches: "id, date, team1Id, team2Id, status",
+    })
+
+    this.version(4).stores({
+      dominoMatches: "id, date, team1Id, team2Id, status, tournamentId, tournamentFixtureId",
+      dominoTournaments: "id, status, createdAt",
+      trumpMatches: "id, date, team1Id, team2Id, status, tournamentId, tournamentFixtureId",
+      trumpTournaments: "id, status, createdAt",
     })
   }
 }
