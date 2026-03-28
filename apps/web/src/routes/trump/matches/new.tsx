@@ -365,7 +365,7 @@ function NewTrumpMatchPage() {
                       </button>
                       {pt.label === "Jack" && (
                         <button type="button"
-                          onClick={() => pt.setter(null)}
+                          onClick={() => { pt.setter(null); setHandHangJack(false) }}
                           className={cn("text-[10px] px-2.5 py-1 rounded-full border transition-colors",
                             pt.value === null ? "border-amber-500 bg-amber-500/10 text-amber-500" : "border-border text-muted-foreground")}
                         >
@@ -384,7 +384,14 @@ function NewTrumpMatchPage() {
                   <span className="text-[10px] text-muted-foreground ml-1">(Jack turned up as trump)</span>
                 </div>
                 <button type="button"
-                  onClick={() => setHandHangJack(!handHangJack)}
+                  onClick={() => {
+                    const next = !handHangJack
+                    setHandHangJack(next)
+                    if (next) {
+                      // Hang Jack: Jack was turned up, dealer's team gets Jack point
+                      setHandJack(handDealer ?? team1Id)
+                    }
+                  }}
                   className={cn("text-xs px-3 py-1 rounded-full border transition-colors",
                     handHangJack ? "border-amber-500 bg-amber-500/10 text-amber-500" : "border-border text-muted-foreground")}
                 >
