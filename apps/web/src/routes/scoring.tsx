@@ -74,7 +74,9 @@ function ScoringPage() {
       db.players.where("teamId").equals(match.team2Id).toArray(),
     ])
     return [...p1, ...p2]
-  }, [match?.id]) ?? []
+  }, [match?.id], null)
+  const isPlayersLoading = allPlayers === null
+  const players = allPlayers ?? []
 
   // ── dialog / sheet state ──────────────────────────────────────────────────
   const [showWicketDialog, setShowWicketDialog] = useState(false)
@@ -168,7 +170,7 @@ function ScoringPage() {
   // Available batsmen for new batsman sheet
   const playingXI: string[] =
     innings.battingTeamId === match.team1Id ? match.playingXI1 : match.playingXI2
-  const availableBatsmen: Player[] = allPlayers.filter(
+  const availableBatsmen: Player[] = players.filter(
     (p) =>
       playingXI.includes(p.id) &&
       p.id !== onStrikeBatsmanId &&
@@ -184,7 +186,7 @@ function ScoringPage() {
       ? innings.ballLog[innings.ballLog.length - 1]?.bowlerId
       : null
 
-  const bowlerOptions = allPlayers
+  const bowlerOptions = players
     .filter((p) => fieldingXI.includes(p.id))
     .map((p) => {
       const oversBowled = oversBowledByBowler[p.id] ?? 0
@@ -200,7 +202,7 @@ function ScoringPage() {
     })
 
   // Fielding team players for wicket dialog
-  const fieldingTeamPlayers = allPlayers.filter((p) => fieldingXI.includes(p.id))
+  const fieldingTeamPlayers = players.filter((p) => fieldingXI.includes(p.id))
 
   // ── scoring handlers (extracted to reduce component size) ─────────────────
 
@@ -221,7 +223,7 @@ function ScoringPage() {
       match, innings, rules, currentInningsIndex, currentOver,
       onStrikeBatsmanId, offStrikeBatsmanId, currentBowlerId,
       isFreeHit, isProcessing, isPowerplay, isSecondInnings,
-      prevInnings, battingTeamName, allPlayers, currentBowler,
+      prevInnings, battingTeamName, allPlayers: players, currentBowler,
     },
     {
       haptic, navigate, triggerFlash,
@@ -242,7 +244,11 @@ function ScoringPage() {
   const canScore = !!onStrikeBatsmanId && !!currentBowlerId && !isProcessing && !inningsIsOver
 
   // ── Next required action (persistent strip) ───────────────────────────────
-  type NextActionType = { kind: "batsman"; label: string } | { kind: "bowler"; label: string } | { kind: "innings"; label: string } | { kind: "match-end"; label: string } | null
+  type NextActionType = {
+    kind: "batsman" | "bowler" | "innings" | "match-end"
+    label: string
+    disabled?: boolean
+  } | null
   const nextAction: NextActionType = (() => {
     // Highest priority: innings is complete — show transition action
     if (inningsIsOver && !isLastInnings)
@@ -250,9 +256,25 @@ function ScoringPage() {
     if (inningsIsOver && isLastInnings)
       return { kind: "match-end" as const, label: "Match complete — view results" }
     if (!onStrikeBatsmanId)
-      return { kind: "batsman" as const, label: innings.battingCard.length === 0 ? "Select opening batsman" : "Select new batsman" }
+      return {
+        kind: "batsman" as const,
+        label: isPlayersLoading
+          ? "Loading players..."
+          : innings.battingCard.length === 0
+            ? "Select opening batsman"
+            : "Select new batsman",
+        disabled: isPlayersLoading,
+      }
     if (!offStrikeBatsmanId)
-      return { kind: "batsman" as const, label: innings.battingCard.length <= 1 ? "Select non-striker" : "Select new batsman" }
+      return {
+        kind: "batsman" as const,
+        label: isPlayersLoading
+          ? "Loading players..."
+          : innings.battingCard.length <= 1
+            ? "Select non-striker"
+            : "Select new batsman",
+        disabled: isPlayersLoading,
+      }
     if (!currentBowlerId)
       return { kind: "bowler" as const, label: innings.ballLog.length === 0 ? "Select opening bowler" : "Select bowler for next over" }
     return null
@@ -431,6 +453,11 @@ function ScoringPage() {
 
       {/* ── Bowler card ── */}
       {currentBowler && <BowlerCard bowler={currentBowler} />}
+      {!currentBowler && innings.ballLog.length > 0 && (
+        <div className="px-3 py-1.5 text-xs text-muted-foreground italic border-b border-border/50 bg-muted/20">
+          Tap “Select bowler for next over” to continue
+        </div>
+      )}
 
       {/* ── Over display ── */}
       <OverDisplay balls={overBalls} lastOverSummary={lastOverSummary} currentBowler={currentBowler} />
@@ -448,21 +475,21 @@ function ScoringPage() {
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.15 }}
             onClick={() => {
+              if (nextAction.disabled) return
               haptic()
               if (nextAction.kind === "innings") {
                 setShowInningsEndDialog(true)
               } else if (nextAction.kind === "match-end") {
                 setShowMatchEndDialog(true)
               } else if (nextAction.kind === "batsman") {
-                if (allPlayers.length > 0) {
-                  setShowNewBatsmanSheet(true)
-                }
+                setShowNewBatsmanSheet(true)
               } else {
                 setShowNewBowlerSheet(true)
               }
             }}
             className={cn(
               "w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold border-y transition-colors",
+              nextAction.disabled && "opacity-70 cursor-wait",
               nextAction.kind === "innings" || nextAction.kind === "match-end"
                 ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
                 : nextAction.kind === "batsman"
