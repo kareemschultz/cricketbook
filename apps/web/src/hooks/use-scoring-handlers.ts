@@ -67,8 +67,8 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
     const latestInnings = latestMatch.innings[latestIdx]
     if (!latestInnings) return
 
-    if (isInningsComplete(latestInnings, ctx.rules)) {
-      const totalInnings = (ctx.rules.inningsPerSide ?? 1) * 2
+    if (isInningsComplete(latestInnings, latestMatch.rules)) {
+      const totalInnings = (latestMatch.rules.inningsPerSide ?? 1) * 2
       const isLastInnings = latestIdx >= totalInnings - 1
       if (isLastInnings) {
         ui.setShowMatchEndDialog(true)
@@ -214,11 +214,13 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
     ui.triggerFlash("wicket")
 
     const latestState = useScoringStore.getState()
-    const latestInnings = latestState.match?.innings[ctx.currentInningsIndex]
+    const latestIdx = latestState.currentInningsIndex
+    const latestMatch = latestState.match
+    const latestInnings = latestMatch?.innings[latestIdx]
 
-    if (latestInnings && isInningsComplete(latestInnings, ctx.rules)) {
-      const totalInnings = (ctx.rules.inningsPerSide ?? 1) * 2
-      const isLastInnings = ctx.currentInningsIndex >= totalInnings - 1
+    if (latestInnings && latestMatch && isInningsComplete(latestInnings, latestMatch.rules)) {
+      const totalInnings = (latestMatch.rules.inningsPerSide ?? 1) * 2
+      const isLastInnings = latestIdx >= totalInnings - 1
       if (isLastInnings) {
         ui.setShowMatchEndDialog(true)
       } else {
