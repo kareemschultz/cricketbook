@@ -113,11 +113,27 @@ function applyBallToMatch(
         ? (batsmanEntry.runs / batsmanEntry.balls) * 100
         : 0
 
-    // Dismissal
+    // Striker dismissal
     if (isCountedWicket(ball) && ball.dismissedPlayerId === ball.batsmanId) {
       batsmanEntry.isOut = true
       batsmanEntry.dismissalType = ball.dismissalType
       batsmanEntry.dismissalText = ball.dismissalText ?? ""
+    }
+  }
+
+  // Non-striker dismissal (e.g. run out at non-striker's end)
+  if (
+    isCountedWicket(ball) &&
+    ball.dismissedPlayerId &&
+    ball.dismissedPlayerId !== ball.batsmanId
+  ) {
+    const nonStrikerEntry = innings.battingCard.find(
+      (e) => e.playerId === ball.dismissedPlayerId
+    )
+    if (nonStrikerEntry) {
+      nonStrikerEntry.isOut = true
+      nonStrikerEntry.dismissalType = ball.dismissalType
+      nonStrikerEntry.dismissalText = ball.dismissalText ?? ""
     }
   }
 
@@ -316,6 +332,22 @@ function rebuildInningsFromBallLog(innings: Innings, ballsPerOver: number): void
       }
     }
 
+    // Non-striker dismissal (e.g. run out at non-striker's end)
+    if (
+      isCountedWicket(ball) &&
+      ball.dismissedPlayerId &&
+      ball.dismissedPlayerId !== ball.batsmanId
+    ) {
+      const nonStrikerEntry = innings.battingCard.find(
+        (e) => e.playerId === ball.dismissedPlayerId
+      )
+      if (nonStrikerEntry) {
+        nonStrikerEntry.isOut = true
+        nonStrikerEntry.dismissalType = ball.dismissalType
+        nonStrikerEntry.dismissalText = ball.dismissalText ?? ""
+      }
+    }
+
     // Fall of wicket
     if (isCountedWicket(ball) && ball.dismissedPlayerId) {
       const dismissed = innings.battingCard.find(
@@ -426,7 +458,7 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
         let onStrike = state.onStrikeBatsmanId
         let offStrike = state.offStrikeBatsmanId
 
-        const swapForRuns = shouldSwapStrikeAfterBall(ball)
+        const swapForRuns = shouldSwapStrikeAfterBall(ball, rules.wideRuns)
         if (swapForRuns) {
           ;[onStrike, offStrike] = [offStrike, onStrike]
         }
@@ -509,7 +541,7 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
         let offStrike = state.offStrikeBatsmanId
 
         // Reverse the strike swap that was caused by the popped ball
-        const wasSwappedForRuns = shouldSwapStrikeAfterBall(poppedBall)
+        const wasSwappedForRuns = shouldSwapStrikeAfterBall(poppedBall, match.rules.wideRuns)
         const wasEndOfOver = isOverComplete(
           [...targetInnings.ballLog, poppedBall], // log before pop
           poppedBall.overNumber,
@@ -524,13 +556,13 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
         }
 
         // If the popped ball was a wicket, restore dismissed batsman
-        if (
-          isCountedWicket(poppedBall) &&
-          poppedBall.dismissedPlayerId
-        ) {
+        if (isCountedWicket(poppedBall) && poppedBall.dismissedPlayerId) {
           if (poppedBall.dismissedPlayerId === poppedBall.batsmanId) {
-            // Restore on-strike batsman
+            // Striker was dismissed — restore them on strike
             onStrike = poppedBall.batsmanId
+          } else {
+            // Non-striker was dismissed (e.g. run out) — restore them off strike
+            offStrike = poppedBall.dismissedPlayerId
           }
         }
 
@@ -602,17 +634,23 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
 
       if (lastBall) {
         // After last ball, determine if strike swapped
-        const swapped = shouldSwapStrikeAfterBall(lastBall)
+        const swapped = shouldSwapStrikeAfterBall(lastBall, match.rules.wideRuns)
         const overDone = isOverComplete(ballLog, lastBall.overNumber, match.rules)
 
         // Start with who faced the last ball
-        let striker = lastBall.batsmanId
+        let striker: string | null = lastBall.batsmanId
         let nonStriker = activeBatsmen.find((b) => b.playerId !== striker)?.playerId ?? null
 
         if (swapped) [striker, nonStriker] = [nonStriker ?? striker, striker]
         if (overDone && shouldSwapStrikeEndOfOver()) {
           ;[striker, nonStriker] = [nonStriker ?? striker, striker]
           currentBowlerId = null // Force new bowler selection after over
+        }
+
+        // If striker was dismissed on the last ball, they're no longer active —
+        // find the real on-strike batter from the active list
+        if (striker && !activeBatsmen.find((b) => b.playerId === striker)) {
+          striker = activeBatsmen.find((b) => b.playerId !== nonStriker)?.playerId ?? null
         }
 
         onStrike = striker

@@ -236,31 +236,66 @@ describe("getBowlerRuns", () => {
 // ─── shouldSwapStrikeAfterBall ────────────────────────────────────────────────
 
 describe("shouldSwapStrikeAfterBall", () => {
-  it("swaps for odd runs (1)", () => {
+  it("swaps for odd bat runs (1)", () => {
     expect(shouldSwapStrikeAfterBall(makeBall({ batsmanRuns: 1, runs: 1 }))).toBe(true)
   })
 
-  it("swaps for odd runs (3)", () => {
+  it("swaps for odd bat runs (3)", () => {
     expect(shouldSwapStrikeAfterBall(makeBall({ batsmanRuns: 3, runs: 3 }))).toBe(true)
   })
 
-  it("does NOT swap for even runs (0)", () => {
+  it("does NOT swap for even bat runs (0)", () => {
     expect(shouldSwapStrikeAfterBall(makeBall({ batsmanRuns: 0, runs: 0 }))).toBe(false)
   })
 
-  it("does NOT swap for even runs (4)", () => {
+  it("does NOT swap for even bat runs (4)", () => {
     expect(shouldSwapStrikeAfterBall(makeBall({ batsmanRuns: 4, runs: 4 }))).toBe(false)
   })
 
-  it("does NOT swap for wide (regardless of runs)", () => {
-    const wide = makeBall({ isExtra: true, extraType: "wide", runs: 1, batsmanRuns: 0 })
-    expect(shouldSwapStrikeAfterBall(wide)).toBe(false)
+  // ── Byes ───────────────────────────────────────────────────────────────────
+
+  it("swaps for 1 bye (batters physically ran 1)", () => {
+    const bye = makeBall({ isExtra: true, extraType: "bye", extraRuns: 1, batsmanRuns: 0, runs: 1 })
+    expect(shouldSwapStrikeAfterBall(bye)).toBe(true)
   })
 
-  it("swaps for odd bye runs (batsmanRuns=0 but bye runs=1 do NOT swap)", () => {
-    // bye: batsmanRuns=0, which is even → no swap
-    const bye = makeBall({ isExtra: true, extraType: "bye", batsmanRuns: 0, runs: 1 })
+  it("does NOT swap for 2 byes (even running)", () => {
+    const bye = makeBall({ isExtra: true, extraType: "bye", extraRuns: 2, batsmanRuns: 0, runs: 2 })
     expect(shouldSwapStrikeAfterBall(bye)).toBe(false)
+  })
+
+  it("swaps for 3 leg byes", () => {
+    const lb = makeBall({ isExtra: true, extraType: "legBye", extraRuns: 3, batsmanRuns: 0, runs: 3 })
+    expect(shouldSwapStrikeAfterBall(lb)).toBe(true)
+  })
+
+  // ── Wides ──────────────────────────────────────────────────────────────────
+
+  it("does NOT swap for plain wide (penalty=1, no running, extraRuns=1)", () => {
+    const wide = makeBall({ isExtra: true, extraType: "wide", extraRuns: 1, batsmanRuns: 0, runs: 1 })
+    expect(shouldSwapStrikeAfterBall(wide, 1)).toBe(false)
+  })
+
+  it("swaps for wide + 1 extra run (extraRuns=2, 1 physical run)", () => {
+    const wide = makeBall({ isExtra: true, extraType: "wide", extraRuns: 2, batsmanRuns: 0, runs: 2 })
+    expect(shouldSwapStrikeAfterBall(wide, 1)).toBe(true)
+  })
+
+  it("does NOT swap for wide + 2 extra runs (extraRuns=3, 2 physical runs = even)", () => {
+    const wide = makeBall({ isExtra: true, extraType: "wide", extraRuns: 3, batsmanRuns: 0, runs: 3 })
+    expect(shouldSwapStrikeAfterBall(wide, 1)).toBe(false)
+  })
+
+  // ── No-balls ────────────────────────────────────────────────────────────────
+
+  it("swaps for no-ball with 1 bat run", () => {
+    const nb = makeBall({ isExtra: true, extraType: "noBall", batsmanRuns: 1, extraRuns: 1, runs: 2 })
+    expect(shouldSwapStrikeAfterBall(nb)).toBe(true)
+  })
+
+  it("does NOT swap for no-ball with 0 bat runs", () => {
+    const nb = makeBall({ isExtra: true, extraType: "noBall", batsmanRuns: 0, extraRuns: 1, runs: 1 })
+    expect(shouldSwapStrikeAfterBall(nb)).toBe(false)
   })
 })
 

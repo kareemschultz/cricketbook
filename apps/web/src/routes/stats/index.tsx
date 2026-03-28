@@ -155,7 +155,7 @@ function WicketTakersTable({
               <td className="py-2 px-2 font-medium">{s.playerName}</td>
               <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{s.matches}</td>
               <td className="py-2 px-2 text-right tabular-nums font-semibold">{s.wickets}</td>
-              <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{s.overs.toFixed(0)}</td>
+              <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{s.balls > 0 ? `${s.overs}.${s.balls}` : s.overs}</td>
               <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">
                 {isFinite(s.average) && s.average > 0 ? s.average.toFixed(1) : "—"}
               </td>
@@ -292,7 +292,7 @@ function BestEconomyTable({
             >
               <td className="py-2 px-2 text-muted-foreground tabular-nums">{i + 1}</td>
               <td className="py-2 px-2 font-medium">{s.playerName}</td>
-              <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{s.overs.toFixed(0)}</td>
+              <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{s.balls > 0 ? `${s.overs}.${s.balls}` : s.overs}</td>
               <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{s.runs}</td>
               <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{s.wickets}</td>
               <td className="py-2 px-2 text-right tabular-nums font-semibold text-primary">

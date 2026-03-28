@@ -234,7 +234,7 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
 
   // ── New bowler selected ───────────────────────────────────────────────────────
 
-  function handleNewBowlerSelect(playerId: string) {
+  async function handleNewBowlerSelect(playerId: string) {
     ui.haptic()
     const player = ctx.allPlayers.find((p) => p.id === playerId)
     if (!player) return
@@ -254,7 +254,7 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
         overs: 0, balls: 0, maidens: 0, runs: 0, wickets: 0,
         economy: 0, dots: 0, wides: 0, noBalls: 0, legalDeliveries: 0,
       })
-      db.matches.put(updated)
+      await db.matches.put(updated)
       useScoringStore.setState({ match: updated, currentBowlerId: playerId })
     } else {
       useScoringStore.setState({ currentBowlerId: playerId })
@@ -265,7 +265,7 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
 
   // ── New batsman selected ──────────────────────────────────────────────────────
 
-  function handleNewBatsmanSelect(playerId: string) {
+  async function handleNewBatsmanSelect(playerId: string) {
     ui.haptic()
     const player = ctx.allPlayers.find((p) => p.id === playerId)
     if (!player) return
@@ -291,7 +291,7 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
       })
     }
 
-    db.matches.put(updated)
+    await db.matches.put(updated)
     useScoringStore.setState({ match: updated, onStrikeBatsmanId: playerId })
     ui.setShowNewBatsmanSheet(false)
 

@@ -82,11 +82,27 @@ export function getExtraRuns(ball: Ball): ExtrasBreakdown {
 
 // ─── Strike rotation ──────────────────────────────────────────────────────────
 
-export function shouldSwapStrikeAfterBall(ball: Ball): boolean {
-  if (ball.isExtra && ball.extraType === "wide") return false
-  // Odd batting runs swap (1, 3, 5)
-  const batsmanRuns = getBatsmanRuns(ball)
-  return batsmanRuns % 2 === 1
+/**
+ * Determine whether strike should rotate after this delivery.
+ * Strike changes on odd *completed* (physically run) deliveries:
+ * - Bye / Leg-bye: all extraRuns were physically run → use extraRuns
+ * - Wide: the penalty run is credited automatically (no physical crossing);
+ *   only additional running counts → use extraRuns − wideRunPenalty
+ * - No-ball: only the batsman's physical runs count; NB penalty is automatic
+ * - Normal: batsmanRuns
+ */
+export function shouldSwapStrikeAfterBall(ball: Ball, wideRunPenalty = 1): boolean {
+  switch (ball.extraType) {
+    case "bye":
+    case "legBye":
+      return ball.extraRuns % 2 === 1
+    case "wide":
+      return Math.max(0, ball.extraRuns - wideRunPenalty) % 2 === 1
+    case "noBall":
+      return ball.batsmanRuns % 2 === 1
+    default:
+      return ball.batsmanRuns % 2 === 1
+  }
 }
 
 export function shouldSwapStrikeEndOfOver(): boolean {
@@ -147,6 +163,8 @@ export function getOversBowledByPlayer(ballLog: Ball[], ballsPerOver: number): R
 
 export function isInningsComplete(innings: Innings, rules: MatchRules): boolean {
   if (innings.isDeclared) return true
+  // Chase complete — target reached
+  if (innings.target !== undefined && innings.totalRuns >= innings.target) return true
   // All out (max wickets reached)
   if (innings.totalWickets >= rules.maxWickets) return true
   // Last man stands — need at least 1 batter remaining

@@ -302,6 +302,9 @@ export async function updatePlayerStatsFromMatch(match: Match): Promise<void> {
     )
   )
 
+  // Track which IDs were actually touched — only these get written to DB
+  const touchedBattingIds = new Set<string>()
+
   // Determine which matchId counts as "new" for each player's match tally
   const batsmanMatchSeen = new Set<string>() // `${playerId}_${fmt}`
 
@@ -320,7 +323,7 @@ export async function updatePlayerStatsFromMatch(match: Match): Promise<void> {
           battingUpdates.get(id) ??
           blankBattingStats(entry.playerId, entry.playerName, fmt)
 
-        // Ensure playerName is populated on blank records
+        // Ensure playerName is populated on blank records loaded from pre-seed
         if (!current.playerId) {
           current.playerId = entry.playerId
           current.playerName = entry.playerName
@@ -328,6 +331,7 @@ export async function updatePlayerStatsFromMatch(match: Match): Promise<void> {
         }
 
         battingUpdates.set(id, { ...mergeBattingEntry(current, entry, isNewMatch), id })
+        touchedBattingIds.add(id)
       }
     }
   }
@@ -349,6 +353,7 @@ export async function updatePlayerStatsFromMatch(match: Match): Promise<void> {
     )
   )
 
+  const touchedBowlingIds = new Set<string>()
   const bowlerMatchSeen = new Set<string>()
 
   for (const innings of match.innings) {
@@ -377,15 +382,20 @@ export async function updatePlayerStatsFromMatch(match: Match): Promise<void> {
           id,
           { ...mergeBowlingEntry(current, entry, ballsPerOver, isNewMatch), id }
         )
+        touchedBowlingIds.add(id)
       }
     }
   }
 
-  // ── Persist all updates in a single transaction ───────────────────────────
+  // ── Persist only touched records in a single transaction ─────────────────
 
   await db.transaction("rw", [db.battingStats, db.bowlingStats], async () => {
-    const battingPuts = [...battingUpdates.values()]
-    const bowlingPuts = [...bowlingUpdates.values()]
+    const battingPuts = [...battingUpdates.entries()]
+      .filter(([id]) => touchedBattingIds.has(id))
+      .map(([, v]) => v)
+    const bowlingPuts = [...bowlingUpdates.entries()]
+      .filter(([id]) => touchedBowlingIds.has(id))
+      .map(([, v]) => v)
 
     await Promise.all([
       db.battingStats.bulkPut(battingPuts),
