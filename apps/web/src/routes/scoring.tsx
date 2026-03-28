@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useLiveQuery } from "dexie-react-hooks"
 import { RotateCcw } from "lucide-react"
@@ -6,20 +6,17 @@ import { motion, AnimatePresence } from "framer-motion"
 
 import { useScoringStore } from "@/stores/scoring"
 import {
-  createBall,
   isInPowerplay,
-  isInningsComplete,
   getRemainingBalls,
   getRequiredRunRate,
   getCurrentRunRate,
   formatOvers,
   getOversBowledByPlayer,
-  buildDismissalText,
   getCurrentPartnership,
 } from "@/lib/cricket-engine"
 import { useWakeLock } from "@/hooks/use-wake-lock"
 import { useHaptic } from "@/hooks/use-haptic"
-import { updatePlayerStatsFromMatch } from "@/lib/stats-calculator"
+import { useScoringHandlers } from "@/hooks/use-scoring-handlers"
 import { db } from "@/db/index"
 
 import { ScoreHeader } from "@/components/scoring/ScoreHeader"
@@ -46,15 +43,7 @@ import {
 } from "@workspace/ui/components/alert-dialog"
 import { cn } from "@workspace/ui/lib/utils"
 
-import type { Ball, DismissalType, Player, BatsmanEntry, BowlerEntry } from "@/types/cricket"
-import { WICKET_DISMISSALS } from "@/types/cricket"
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
-function getNextDeliveryNumber(ballLog: Ball[]): number {
-  if (ballLog.length === 0) return 0
-  return (ballLog[ballLog.length - 1]?.deliveryNumber ?? -1) + 1
-}
+import type { Player, BatsmanEntry, BowlerEntry } from "@/types/cricket"
 
 // ─── component ────────────────────────────────────────────────────────────────
 
@@ -72,8 +61,6 @@ function ScoringPage() {
     overBalls,
     lastOverSummary,
     isProcessing,
-    recordBall,
-    undoLastBall,
     swapStrike,
   } = useScoringStore()
 
@@ -215,441 +202,33 @@ function ScoringPage() {
   // Fielding team players for wicket dialog
   const fieldingTeamPlayers = allPlayers.filter((p) => fieldingXI.includes(p.id))
 
-  // ── post-ball checks ──────────────────────────────────────────────────────
+  // ── scoring handlers (extracted to reduce component size) ─────────────────
 
-  function checkPostBall() {
-    // Read fresh state after await recordBall — closure `match` is stale at this point
-    const latestState = useScoringStore.getState()
-    const latestMatch = latestState.match
-    if (!latestMatch) return
-    const latestIdx = latestState.currentInningsIndex
-    const latestInnings = latestMatch.innings[latestIdx]
-    if (!latestInnings) return
-
-    // Check innings complete
-    if (isInningsComplete(latestInnings, rules)) {
-      const isLastInnings =
-        latestIdx >= latestMatch.innings.length - 1 ||
-        (rules.inningsPerSide === 1 && latestIdx >= 1)
-      if (isLastInnings) {
-        setShowMatchEndDialog(true)
-      } else {
-        setShowInningsEndDialog(true)
-      }
-      return
-    }
-
-    // Check if new bowler needed (over just ended)
-    if (latestState.currentBowlerId === null) {
-      setShowNewBowlerSheet(true)
-    }
-  }
-
-  // ── ball construction helpers ─────────────────────────────────────────────
-
-  function buildCoreBallInput(overrides: Partial<Parameters<typeof createBall>[0]>) {
-    return {
-      inningsIndex: currentInningsIndex,
-      overNumber: currentOver,
-      deliveryNumber: getNextDeliveryNumber(innings.ballLog),
-      batsmanId: onStrikeBatsmanId ?? "",
-      bowlerId: currentBowlerId ?? "",
-      runs: 0,
-      batsmanRuns: 0,
-      isExtra: false,
-      extraRuns: 0,
-      isWicket: false,
-      isFreeHit,
-      nextIsFreeHit: false,
-      isNoBallBatRuns: false,
-      powerplay: isPowerplay,
-      rules,
-      ballLog: innings.ballLog,
-      ...overrides,
-    }
-  }
-
-  // ── run handler ───────────────────────────────────────────────────────────
-
-  const handleRun = useCallback(
-    async (runs: number) => {
-      if (!onStrikeBatsmanId || !currentBowlerId || isProcessing) return
-      haptic()
-      const ball = createBall(
-        buildCoreBallInput({
-          runs,
-          batsmanRuns: runs,
-          isExtra: false,
-          extraRuns: 0,
-        })
-      )
-      await recordBall(ball)
-      if (runs === 4) triggerFlash("boundary")
-      else if (runs === 6) triggerFlash("six")
-      checkPostBall()
+  const {
+    handleRun,
+    handleWide,
+    handleNoBall,
+    handleBye,
+    handleOverthrow,
+    handleWicketConfirm,
+    handleNewBowlerSelect,
+    handleNewBatsmanSelect,
+    handleStartNextInnings,
+    handleEndMatch,
+    handleUndo,
+  } = useScoringHandlers(
+    {
+      match, innings, rules, currentInningsIndex, currentOver,
+      onStrikeBatsmanId, offStrikeBatsmanId, currentBowlerId,
+      isFreeHit, isProcessing, isPowerplay, isSecondInnings,
+      prevInnings, battingTeamName, allPlayers, currentBowler,
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onStrikeBatsmanId, currentBowlerId, isProcessing, isFreeHit, currentOver, innings]
+    {
+      haptic, navigate, triggerFlash,
+      setShowWicketDialog, setShowNewBowlerSheet, setShowNewBatsmanSheet,
+      setShowInningsEndDialog, setShowMatchEndDialog,
+    }
   )
-
-  // ── wide handler ──────────────────────────────────────────────────────────
-
-  async function handleWide(extraRuns: number) {
-    if (!onStrikeBatsmanId || !currentBowlerId || isProcessing) return
-    haptic()
-    const wideRuns = rules.wideRuns + extraRuns
-    const ball = createBall(
-      buildCoreBallInput({
-        runs: wideRuns,
-        batsmanRuns: 0,
-        isExtra: true,
-        extraType: "wide",
-        extraRuns: wideRuns,
-      })
-    )
-    await recordBall(ball)
-    checkPostBall()
-  }
-
-  // ── no-ball handler ───────────────────────────────────────────────────────
-
-  async function handleNoBall(batRuns: number) {
-    if (!onStrikeBatsmanId || !currentBowlerId || isProcessing) return
-    haptic()
-    const nbRuns = rules.noBallRuns
-    const totalRuns = nbRuns + batRuns
-    const ball = createBall(
-      buildCoreBallInput({
-        runs: totalRuns,
-        batsmanRuns: batRuns,
-        isExtra: true,
-        extraType: "noBall",
-        extraRuns: nbRuns,
-        isNoBallBatRuns: batRuns > 0,
-        nextIsFreeHit: rules.freeHitOnNoBall,
-      })
-    )
-    await recordBall(ball)
-    checkPostBall()
-  }
-
-  // ── bye / leg-bye handler ─────────────────────────────────────────────────
-
-  async function handleBye(runs: number, isLegBye: boolean) {
-    if (!onStrikeBatsmanId || !currentBowlerId || isProcessing) return
-    haptic()
-    const ball = createBall(
-      buildCoreBallInput({
-        runs,
-        batsmanRuns: 0,
-        isExtra: true,
-        extraType: isLegBye ? "legBye" : "bye",
-        extraRuns: runs,
-      })
-    )
-    await recordBall(ball)
-    checkPostBall()
-  }
-
-  // ── overthrow handler ─────────────────────────────────────────────────────
-
-  async function handleOverthrow(totalRuns: number) {
-    if (!onStrikeBatsmanId || !currentBowlerId || isProcessing) return
-    haptic()
-    const ball = createBall(
-      buildCoreBallInput({
-        runs: totalRuns,
-        batsmanRuns: totalRuns,
-        isExtra: false,
-        extraRuns: 0,
-      })
-    )
-    ball.overthrows = totalRuns
-    await recordBall(ball)
-    triggerFlash("boundary")
-    checkPostBall()
-  }
-
-  // ── wicket handler ────────────────────────────────────────────────────────
-
-  async function handleWicketConfirm(data: {
-    dismissalType: DismissalType
-    dismissedPlayerId: string
-    fielderId?: string
-  }) {
-    if (!onStrikeBatsmanId || !currentBowlerId || isProcessing) return
-    setShowWicketDialog(false)
-    haptic()
-
-    const fielderPlayer = data.fielderId
-      ? allPlayers.find((p) => p.id === data.fielderId)
-      : undefined
-    const bowlerName = currentBowler?.playerName ?? ""
-    const dismissalText = buildDismissalText(
-      data.dismissalType,
-      bowlerName,
-      fielderPlayer?.name
-    )
-
-    const isCountedWicket = WICKET_DISMISSALS.includes(data.dismissalType)
-
-    const ball = createBall(
-      buildCoreBallInput({
-        runs: 0,
-        batsmanRuns: 0,
-        isExtra: false,
-        extraRuns: 0,
-        isWicket: true,
-        dismissalType: data.dismissalType,
-        dismissedPlayerId: data.dismissedPlayerId,
-        fielderId: data.fielderId,
-        dismissalText,
-      })
-    )
-    await recordBall(ball)
-    triggerFlash("wicket")
-
-    // After recording, check if innings is done
-    const latestState = useScoringStore.getState()
-    const latestInnings = latestState.match?.innings[currentInningsIndex]
-
-    if (latestInnings && isInningsComplete(latestInnings, rules)) {
-      const isLastInnings =
-        currentInningsIndex >= (latestState.match?.innings.length ?? 1) - 1 ||
-        (rules.inningsPerSide === 1 && currentInningsIndex >= 1)
-      if (isLastInnings) {
-        setShowMatchEndDialog(true)
-      } else {
-        setShowInningsEndDialog(true)
-      }
-      return
-    }
-
-    // If counted wicket and innings not complete — need new batsman
-    if (isCountedWicket) {
-      setShowNewBatsmanSheet(true)
-    }
-
-    // Also check if over ended
-    if (latestState.currentBowlerId === null) {
-      setShowNewBowlerSheet(true)
-    }
-  }
-
-  // ── new bowler selected ───────────────────────────────────────────────────
-
-  function handleNewBowlerSelect(playerId: string) {
-    if (!match) return
-    haptic()
-    const player = allPlayers.find((p) => p.id === playerId)
-    if (!player) return
-
-    // Add to bowling card if not already there
-    const latestStore = useScoringStore.getState()
-    const latestMatch = latestStore.match
-    if (!latestMatch) return
-
-    const targetInnings = latestMatch.innings[currentInningsIndex]
-    const alreadyInCard = targetInnings.bowlingCard.some((e) => e.playerId === playerId)
-
-    if (!alreadyInCard) {
-      const updated = JSON.parse(JSON.stringify(latestMatch))
-      updated.innings[currentInningsIndex].bowlingCard.push({
-        playerId: player.id,
-        playerName: player.name,
-        overs: 0,
-        balls: 0,
-        maidens: 0,
-        runs: 0,
-        wickets: 0,
-        economy: 0,
-        dots: 0,
-        wides: 0,
-        noBalls: 0,
-        legalDeliveries: 0,
-      })
-      db.matches.put(updated)
-      useScoringStore.setState({ match: updated, currentBowlerId: playerId })
-    } else {
-      useScoringStore.setState({ currentBowlerId: playerId })
-    }
-
-    setShowNewBowlerSheet(false)
-  }
-
-  // ── new batsman selected ──────────────────────────────────────────────────
-
-  function handleNewBatsmanSelect(playerId: string) {
-    if (!match) return
-    haptic()
-    const player = allPlayers.find((p) => p.id === playerId)
-    if (!player) return
-
-    const latestStore = useScoringStore.getState()
-    const latestMatch = latestStore.match
-    if (!latestMatch) return
-
-    const targetInnings = latestMatch.innings[currentInningsIndex]
-    const alreadyInCard = targetInnings.battingCard.some((e) => e.playerId === playerId)
-
-    const updated = JSON.parse(JSON.stringify(latestMatch))
-    if (!alreadyInCard) {
-      updated.innings[currentInningsIndex].battingCard.push({
-        playerId: player.id,
-        playerName: player.name,
-        position: targetInnings.battingCard.length + 1,
-        runs: 0,
-        balls: 0,
-        fours: 0,
-        sixes: 0,
-        dots: 0,
-        strikeRate: 0,
-        isOut: false,
-        isRetiredHurt: false,
-        dismissalText: "not out",
-        comeInOver: currentOver,
-        comeInScore: targetInnings.totalRuns,
-      })
-    }
-
-    db.matches.put(updated)
-    useScoringStore.setState({
-      match: updated,
-      onStrikeBatsmanId: playerId,
-    })
-
-    setShowNewBatsmanSheet(false)
-
-    // If also need new bowler (over ended on wicket ball)
-    if (latestStore.currentBowlerId === null) {
-      setShowNewBowlerSheet(true)
-    }
-  }
-
-  // ── start 2nd innings ─────────────────────────────────────────────────────
-
-  async function handleStartNextInnings() {
-    if (!match) return
-    setShowInningsEndDialog(false)
-
-    const newInningsIndex = currentInningsIndex + 1
-    const newBattingTeamId =
-      innings.battingTeamId === match.team1Id ? match.team2Id : match.team1Id
-    const newBowlingTeamId = innings.battingTeamId
-
-    const updated = JSON.parse(JSON.stringify(match))
-    updated.currentInningsIndex = newInningsIndex
-    updated.innings.push({
-      index: newInningsIndex,
-      battingTeamId: newBattingTeamId,
-      bowlingTeamId: newBowlingTeamId,
-      status: "live",
-      totalRuns: 0,
-      totalWickets: 0,
-      totalOvers: 0,
-      totalBalls: 0,
-      totalLegalDeliveries: 0,
-      extras: { wide: 0, noBall: 0, bye: 0, legBye: 0, penalty: 0, total: 0 },
-      battingCard: [],
-      bowlingCard: [],
-      ballLog: [],
-      fallOfWickets: [],
-      partnerships: [],
-      target: innings.totalRuns + 1,
-      isDeclared: false,
-    })
-    // Complete current innings
-    updated.innings[currentInningsIndex].status = "completed"
-
-    await db.matches.put(updated)
-    useScoringStore.setState({
-      match: updated,
-      currentInningsIndex: newInningsIndex,
-      onStrikeBatsmanId: null,
-      offStrikeBatsmanId: null,
-      currentBowlerId: null,
-      isFreeHit: false,
-      overBalls: [],
-      lastOverSummary: "",
-      oversBowledByBowler: {},
-    })
-
-    // Open new batsman sheet to pick openers
-    setShowNewBatsmanSheet(true)
-  }
-
-  // ── end match ─────────────────────────────────────────────────────────────
-
-  async function handleEndMatch() {
-    if (!match) return
-    setShowMatchEndDialog(false)
-
-    const updated = JSON.parse(JSON.stringify(match))
-    // Mark innings complete
-    updated.innings[currentInningsIndex].status = "completed"
-    updated.status = "completed"
-
-    // Determine winner
-    let resultStr = ""
-    let winnerId: string | undefined
-
-    if (isSecondInnings && prevInnings) {
-      const team2Runs = updated.innings[currentInningsIndex].totalRuns
-      const team1Runs = prevInnings.totalRuns
-
-      if (team2Runs > team1Runs) {
-        // Chasing team won
-        const wicketsLeft =
-          rules.maxWickets - updated.innings[currentInningsIndex].totalWickets
-        const ballsLeft = getRemainingBalls(updated.innings[currentInningsIndex], rules)
-        winnerId = innings.battingTeamId
-        const winnerName =
-          innings.battingTeamId === match.team1Id ? match.team1Name : match.team2Name
-        resultStr = `${winnerName} won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? "s" : ""}${
-          ballsLeft ? ` (${formatOvers(ballsLeft, rules.ballsPerOver)} ov remaining)` : ""
-        }`
-      } else if (team1Runs > team2Runs) {
-        // First batting team won
-        winnerId = prevInnings.battingTeamId
-        const winnerName =
-          prevInnings.battingTeamId === match.team1Id ? match.team1Name : match.team2Name
-        resultStr = `${winnerName} won by ${team1Runs - team2Runs} run${team1Runs - team2Runs !== 1 ? "s" : ""}`
-      } else {
-        resultStr = "Match tied"
-        winnerId = "tie"
-      }
-    } else {
-      // First innings ended (all out / overs done)
-      const runsScored = updated.innings[currentInningsIndex].totalRuns
-      resultStr = `Innings complete — ${battingTeamName} scored ${runsScored}/${updated.innings[currentInningsIndex].totalWickets}`
-    }
-
-    updated.result = resultStr
-    updated.winner = winnerId
-
-    await db.matches.put(updated)
-
-    // Update player stats
-    try {
-      await updatePlayerStatsFromMatch(updated)
-    } catch {
-      // Non-fatal
-    }
-
-    useScoringStore.getState().clearSession()
-    navigate({ to: `/scorecard/${match.id}` })
-  }
-
-  // ── undo handler ─────────────────────────────────────────────────────────
-
-  async function handleUndo() {
-    if (isProcessing) return
-    haptic()
-    await undoLastBall()
-    // Close any open sheets in case undo resolves them
-    setShowNewBowlerSheet(false)
-    setShowNewBatsmanSheet(false)
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Guard: need striker + bowler to score

@@ -233,14 +233,15 @@ function BattingTab({ playerId }: { playerId: string }) {
 
   // Form: get last 10 innings runs from match history
   const formRuns = useLiveQuery(async () => {
-    const matches = await db.matches
+    const all = await db.matches
       .where("status")
       .anyOf(["completed", "abandoned"])
-      .reverse()
       .sortBy("date")
+    // sortBy returns ascending — reverse for newest-first
+    const recent = all.reverse()
 
     const innings: number[] = []
-    for (const m of matches) {
+    for (const m of recent) {
       for (const inn of m.innings) {
         const entry = inn.battingCard.find((b) => b.playerId === playerId)
         if (entry) innings.push(entry.runs)
@@ -354,14 +355,14 @@ function BowlingTab({ playerId }: { playerId: string }) {
 
   // Form: last 10 bowling spells wickets
   const formWickets = useLiveQuery(async () => {
-    const matches = await db.matches
+    const all = await db.matches
       .where("status")
       .anyOf(["completed", "abandoned"])
-      .reverse()
       .sortBy("date")
+    const recent = all.reverse()
 
     const spells: number[] = []
-    for (const m of matches) {
+    for (const m of recent) {
       for (const inn of m.innings) {
         const entry = inn.bowlingCard.find((b) => b.playerId === playerId)
         if (entry) spells.push(entry.wickets)

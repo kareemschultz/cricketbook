@@ -127,9 +127,8 @@ function HistoryPage() {
     const all = await db.matches
       .where("status")
       .anyOf(["completed", "abandoned"])
-      .reverse()
       .sortBy("date")
-    return all
+    return all.reverse()
   })
 
   const filtered =

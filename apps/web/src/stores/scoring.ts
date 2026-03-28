@@ -393,7 +393,7 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
 
       try {
         // Deep-clone match to avoid mutating Zustand state directly
-        const match: Match = JSON.parse(JSON.stringify(state.match))
+        const match: Match = structuredClone(state.match)
         const inningsIndex = state.currentInningsIndex
         const innings = match.innings[inningsIndex]
         const rules = match.rules
@@ -489,7 +489,7 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
 
       try {
         // Deep-clone and pop last ball
-        const match: Match = JSON.parse(JSON.stringify(state.match))
+        const match: Match = structuredClone(state.match)
         const targetInnings = match.innings[inningsIndex]
         const poppedBall = targetInnings.ballLog.pop()
 

@@ -25,7 +25,7 @@ export function formatOvers(legalBalls: number, ballsPerOver = 6): string {
 /** Parse "16.3" back to total legal balls */
 export function parsedOvers(oversStr: string, ballsPerOver = 6): number {
   const [o, b = "0"] = oversStr.split(".")
-  return parseInt(o) * ballsPerOver + parseInt(b)
+  return (parseInt(o) || 0) * ballsPerOver + (parseInt(b) || 0)
 }
 
 // ─── Delivery classification ──────────────────────────────────────────────────
@@ -177,7 +177,7 @@ export function getRemainingBalls(
   if (!rules.oversPerInnings) return null
   const totalBalls = rules.oversPerInnings * rules.ballsPerOver
   const legalBalls = currentInnings.ballLog.filter((b) => b.isLegal).length
-  return totalBalls - legalBalls
+  return Math.max(0, totalBalls - legalBalls)
 }
 
 export function getRequiredRunRate(needed: number, ballsRemaining: number, ballsPerOver = 6): number {

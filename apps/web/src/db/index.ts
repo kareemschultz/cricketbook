@@ -88,12 +88,12 @@ export async function getLiveMatch(): Promise<Match | undefined> {
 }
 
 export async function getMatchHistory(limit = 50): Promise<Match[]> {
-  return db.matches
+  const all = await db.matches
     .where("status")
     .anyOf(["completed", "abandoned"])
-    .reverse()
     .sortBy("date")
-    .then((matches) => matches.slice(0, limit))
+  // sortBy always returns ascending — reverse for newest-first
+  return all.reverse().slice(0, limit)
 }
 
 // ─── Stats helpers ────────────────────────────────────────────────────────────

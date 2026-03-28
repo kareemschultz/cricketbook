@@ -189,12 +189,11 @@ function HomePage() {
   )
 
   const recentMatches = useLiveQuery(async () => {
-    const matches = await db.matches
+    const all = await db.matches
       .where("status")
       .anyOf(["completed", "abandoned"])
-      .reverse()
       .sortBy("date")
-    return matches.slice(0, 3)
+    return all.reverse().slice(0, 3)
   })
 
   const totalMatches = useLiveQuery(() =>
