@@ -342,37 +342,56 @@ export function computeBowlerEntry(
   ballLog: Ball[],
   ballsPerOver: number
 ): BowlerEntry {
-  const myBalls = ballLog.filter((b) => b.bowlerId === playerId)
-  const legalBalls = myBalls.filter((b) => b.isLegal)
-  const completedOvers = Math.floor(legalBalls.length / ballsPerOver)
-  const remainderBalls = legalBalls.length % ballsPerOver
+  // Single-pass accumulator — avoids 8+ linear scans over the full ball log
+  let legalCount = 0
+  let runs = 0
+  let wickets = 0
+  let dots = 0
+  let wides = 0
+  let noBalls = 0
+  // overNumber → { legalCount, bowlerRuns, hasIllegal } for maiden detection
+  // hasIllegal mirrors isMaidenOver's `every(b => b.isLegal)` check
+  const overMap = new Map<number, { legalCount: number; bowlerRuns: number; hasIllegal: boolean }>()
 
-  // Compute maidens
-  const overNums = [...new Set(myBalls.map((b) => b.overNumber))]
-  let maidens = 0
-  for (const ov of overNums) {
-    const overBalls = myBalls.filter((b) => b.overNumber === ov)
-    const legalCount = overBalls.filter((b) => b.isLegal).length
-    if (legalCount === ballsPerOver && isMaidenOver(overBalls)) maidens++
+  for (const b of ballLog) {
+    if (b.bowlerId !== playerId) continue
+    const bowlerRuns = getBowlerRuns(b)
+    runs += bowlerRuns
+    if (b.extraType === "wide") wides++
+    if (b.extraType === "noBall") noBalls++
+
+    // Update per-over stats (all balls, including illegal, affect maiden status)
+    const prev = overMap.get(b.overNumber) ?? { legalCount: 0, bowlerRuns: 0, hasIllegal: false }
+    overMap.set(b.overNumber, {
+      legalCount: prev.legalCount + (b.isLegal ? 1 : 0),
+      bowlerRuns: prev.bowlerRuns + bowlerRuns,
+      hasIllegal: prev.hasIllegal || !b.isLegal,
+    })
+
+    if (!b.isLegal) continue
+    legalCount++
+    if (b.isWicket && b.dismissalType && BOWLER_CREDITED.includes(b.dismissalType)) wickets++
+    if (bowlerRuns === 0 && !b.isWicket) dots++
   }
 
-  const runs = myBalls.reduce((sum, b) => sum + getBowlerRuns(b), 0)
-  const wickets = myBalls.filter(
-    (b) => b.isWicket && b.dismissalType && BOWLER_CREDITED.includes(b.dismissalType)
-  ).length
+  let maidens = 0
+  for (const { legalCount: lc, bowlerRuns: br, hasIllegal } of overMap.values()) {
+    if (lc >= ballsPerOver && br === 0 && !hasIllegal) maidens++
+  }
+
   return {
     playerId,
     playerName,
-    overs: completedOvers,
-    balls: remainderBalls,
+    overs: Math.floor(legalCount / ballsPerOver),
+    balls: legalCount % ballsPerOver,
     maidens,
     runs,
     wickets,
-    economy: legalBalls.length > 0 ? (runs / legalBalls.length) * ballsPerOver : 0,
-    dots: myBalls.filter((b) => b.isLegal && getBowlerRuns(b) === 0 && !b.isWicket).length,
-    wides: myBalls.filter((b) => b.extraType === "wide").length,
-    noBalls: myBalls.filter((b) => b.extraType === "noBall").length,
-    legalDeliveries: legalBalls.length,
+    economy: legalCount > 0 ? (runs / legalCount) * ballsPerOver : 0,
+    dots,
+    wides,
+    noBalls,
+    legalDeliveries: legalCount,
   }
 }
 
