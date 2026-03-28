@@ -507,6 +507,21 @@ function ScoringPage() {
         )}
       </AnimatePresence>
 
+      {/* ── Disabled reason hint — shown when scoring is blocked and nextAction doesn't cover it ── */}
+      {!canScore && !nextAction && (
+        <div className="px-3 py-1.5 text-xs text-muted-foreground text-center italic">
+          {inningsIsOver && isLastInnings
+            ? "Match complete"
+            : inningsIsOver
+              ? "Innings complete"
+              : isProcessing
+                ? "Processing…"
+                : !onStrikeBatsmanId
+                  ? "Select a striker to continue"
+                  : "Select a bowler to continue"}
+        </div>
+      )}
+
       {/* ── Scoring buttons ── */}
       <div className="flex-1 flex flex-col justify-end px-2 pb-2 gap-1.5 pt-1.5">
 

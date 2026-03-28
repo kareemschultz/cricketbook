@@ -92,26 +92,49 @@ function SettingsPage() {
   // ── Export ───────────────────────────────────────────────────────────────────
 
   async function handleExport() {
-    const [teams, players, matches, tournaments, battingStats, bowlingStats] =
-      await Promise.all([
-        db.teams.toArray(),
-        db.players.toArray(),
-        db.matches.toArray(),
-        db.tournaments.toArray(),
-        db.battingStats.toArray(),
-        db.bowlingStats.toArray(),
-      ])
+    const [
+      teams, players, matches, tournaments, battingStats, bowlingStats,
+      fifaPlayers, fifaMatches,
+      dominoPlayers, dominoTeams, dominoMatches,
+      trumpPlayers, trumpTeams, trumpMatches,
+      settingsRows,
+    ] = await Promise.all([
+      db.teams.toArray(),
+      db.players.toArray(),
+      db.matches.toArray(),
+      db.tournaments.toArray(),
+      db.battingStats.toArray(),
+      db.bowlingStats.toArray(),
+      db.fifaPlayers.toArray(),
+      db.fifaMatches.toArray(),
+      db.dominoPlayers.toArray(),
+      db.dominoTeams.toArray(),
+      db.dominoMatches.toArray(),
+      db.trumpPlayers.toArray(),
+      db.trumpTeams.toArray(),
+      db.trumpMatches.toArray(),
+      db.settings.toArray(),
+    ])
 
     const payload = {
       exportedAt: new Date().toISOString(),
       version: "1.0.0",
-      schemaVersion: 1,
+      schemaVersion: 2,
       teams,
       players,
       matches,
       tournaments,
       battingStats,
       bowlingStats,
+      fifaPlayers,
+      fifaMatches,
+      dominoPlayers,
+      dominoTeams,
+      dominoMatches,
+      trumpPlayers,
+      trumpTeams,
+      trumpMatches,
+      settings: settingsRows,
     }
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -163,7 +186,12 @@ function SettingsPage() {
     pickAndParseFile(
       (data) => {
         const errors = validateImportPayload(data)
-        const TABLES = ["teams", "players", "matches", "tournaments", "battingStats", "bowlingStats"] as const
+        const TABLES = [
+          "teams", "players", "matches", "tournaments", "battingStats", "bowlingStats",
+          "settings", "fifaPlayers", "fifaMatches",
+          "dominoPlayers", "dominoTeams", "dominoMatches",
+          "trumpPlayers", "trumpTeams", "trumpMatches",
+        ] as const
         const counts = Object.fromEntries(
           TABLES.map((t) => [t, Array.isArray(data[t]) ? (data[t] as unknown[]).length : 0])
         )
@@ -176,17 +204,24 @@ function SettingsPage() {
   function handleImportDirect() {
     pickAndParseFile(
       async (data) => {
-        // Warn about schema version mismatch but don't block
-        if (data.schemaVersion !== undefined && data.schemaVersion !== 1) {
+        // Warn about schema version mismatch but don't block (accept v1 and v2)
+        const exportedVersion = typeof data.schemaVersion === "number" ? data.schemaVersion : 1
+        if (exportedVersion > 2) {
           const proceed = window.confirm(
-            `This backup was exported with schema version ${data.schemaVersion}. ` +
-            `Current app uses version 1. Rows may not import correctly. Continue?`
+            `This backup was exported with schema version ${exportedVersion}. ` +
+            `Current app uses version 2. Rows may not import correctly. Continue?`
           )
           if (!proceed) return
         }
 
         // Validate each table's data is an array of objects before writing
-        const tables = ["teams", "players", "matches", "tournaments", "battingStats", "bowlingStats"] as const
+        const tables = [
+          "teams", "players", "matches", "tournaments", "battingStats", "bowlingStats",
+          "fifaPlayers", "fifaMatches",
+          "dominoPlayers", "dominoTeams", "dominoMatches",
+          "trumpPlayers", "trumpTeams", "trumpMatches",
+          "settings",
+        ] as const
         for (const table of tables) {
           if (data[table] !== undefined && !isArrayOfObjects(data[table])) {
             alert(`Import failed: "${table}" must be an array of objects.`)
@@ -204,7 +239,13 @@ function SettingsPage() {
         try {
           await db.transaction(
             "rw",
-            [db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats],
+            [
+              db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats,
+              db.fifaPlayers, db.fifaMatches,
+              db.dominoPlayers, db.dominoTeams, db.dominoMatches,
+              db.trumpPlayers, db.trumpTeams, db.trumpMatches,
+              db.settings,
+            ],
             async () => {
               if (isArrayOfObjects(data.teams) && data.teams.length) await db.teams.bulkPut(data.teams as never)
               if (isArrayOfObjects(data.players) && data.players.length) await db.players.bulkPut(data.players as never)
@@ -215,6 +256,24 @@ function SettingsPage() {
                 await db.battingStats.bulkPut(data.battingStats as never)
               if (isArrayOfObjects(data.bowlingStats) && data.bowlingStats.length)
                 await db.bowlingStats.bulkPut(data.bowlingStats as never)
+              if (isArrayOfObjects(data.fifaPlayers) && data.fifaPlayers.length)
+                await db.fifaPlayers.bulkPut(data.fifaPlayers as never)
+              if (isArrayOfObjects(data.fifaMatches) && data.fifaMatches.length)
+                await db.fifaMatches.bulkPut(data.fifaMatches as never)
+              if (isArrayOfObjects(data.dominoPlayers) && data.dominoPlayers.length)
+                await db.dominoPlayers.bulkPut(data.dominoPlayers as never)
+              if (isArrayOfObjects(data.dominoTeams) && data.dominoTeams.length)
+                await db.dominoTeams.bulkPut(data.dominoTeams as never)
+              if (isArrayOfObjects(data.dominoMatches) && data.dominoMatches.length)
+                await db.dominoMatches.bulkPut(data.dominoMatches as never)
+              if (isArrayOfObjects(data.trumpPlayers) && data.trumpPlayers.length)
+                await db.trumpPlayers.bulkPut(data.trumpPlayers as never)
+              if (isArrayOfObjects(data.trumpTeams) && data.trumpTeams.length)
+                await db.trumpTeams.bulkPut(data.trumpTeams as never)
+              if (isArrayOfObjects(data.trumpMatches) && data.trumpMatches.length)
+                await db.trumpMatches.bulkPut(data.trumpMatches as never)
+              if (isArrayOfObjects(data.settings) && data.settings.length)
+                await db.settings.bulkPut(data.settings as never)
             }
           )
           alert("Import successful!")
@@ -231,7 +290,13 @@ function SettingsPage() {
   async function handleClearData() {
     await db.transaction(
       "rw",
-      [db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats],
+      [
+        db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats,
+        db.fifaPlayers, db.fifaMatches,
+        db.dominoPlayers, db.dominoTeams, db.dominoMatches,
+        db.trumpPlayers, db.trumpTeams, db.trumpMatches,
+        db.settings,
+      ],
       async () => {
         await Promise.all([
           db.teams.clear(),
@@ -240,6 +305,15 @@ function SettingsPage() {
           db.tournaments.clear(),
           db.battingStats.clear(),
           db.bowlingStats.clear(),
+          db.fifaPlayers.clear(),
+          db.fifaMatches.clear(),
+          db.dominoPlayers.clear(),
+          db.dominoTeams.clear(),
+          db.dominoMatches.clear(),
+          db.trumpPlayers.clear(),
+          db.trumpTeams.clear(),
+          db.trumpMatches.clear(),
+          db.settings.clear(),
         ])
       }
     )

@@ -42,6 +42,14 @@ node ../../node_modules/.bun/vite@*/node_modules/vite/bin/vite.js --port 5173   
 node apps/web/node_modules/typescript/bin/tsc --noEmit --project apps/web/tsconfig.app.json
 ```
 
+## Cricket Engine Rules
+
+**Partnership includes ALL runs, not just batsman runs:**
+`getCurrentPartnership` sums `b.runs` for every ball while the pair is at the crease — including wides, byes, leg-byes, and no-ball extras. Individual batsman credit is tracked separately via `getBatsmanRuns`. Do NOT filter `!b.isExtra` when computing partnership totals.
+
+**Import validator uses `isFiniteNumber`, not `typeof x === "number"`:**
+`isFiniteNumber` rejects `NaN` and `Infinity`. Always use it when validating numeric fields in `import-validator.ts`.
+
 ## Key Architecture Decisions
 1. **Event sourcing**: `ballLog` is source of truth; all stats are derived
 2. **Zustand only for live scoring** (`stores/scoring.ts`) — everything else via `useLiveQuery`
@@ -83,6 +91,22 @@ const totalInnings = (latestMatch.rules.inningsPerSide ?? 1) * 2
 const isLastInnings = latestIdx >= totalInnings - 1
 // NOT: match.innings.length - 1  ← wrong when first innings ends
 ```
+
+## Critical: allPlayers useLiveQuery must use null sentinel
+
+```ts
+// WRONG — useLiveQuery ?? [] makes loading look like empty list
+const allPlayers = useLiveQuery(..., [match?.id]) ?? []
+if (allPlayers.length > 0) setShowNewBatsmanSheet(true) // ← never opens during load
+
+// CORRECT
+const allPlayers = useLiveQuery(..., [match?.id], null)
+const isPlayersLoading = allPlayers === null
+const players = allPlayers ?? []
+// Pass disabled: isPlayersLoading into NextActionType for the next-action strip
+```
+
+**Why:** During Dexie initialization, `useLiveQuery` returns `undefined`. With `?? []`, this looks like an empty players list, blocking the batsman sheet from opening. Using `null` as the default lets us detect the loading state and show "Loading players..." instead of silently blocking.
 
 ## Critical Architecture: ScoringLoader Pattern
 
@@ -130,19 +154,9 @@ loadMatch: async (id) => {
 
 ## Known Bugs
 
-### Bug 1: NewBatsmanSheet may not open after wicket [MEDIUM]
-- **Symptom**: After recording a wicket, the bottom sheet to select next batsman sometimes doesn't visually appear
-- **Location**: `apps/web/src/routes/scoring.tsx`, `components/scoring/NewBatsmanSheet.tsx`
-- **Root cause**: `availableBatsmen` may be empty if `allPlayers` useLiveQuery hasn't loaded; OR Base UI Sheet portal timing
-- **Fix approach**: Ensure `allPlayers` is loaded before showing sheet
-
 ### Bug 2: Bottom nav overlaps wizard "Next" buttons [LOW]
 - **Symptom**: In new-match.tsx wizard, bottom action buttons partially obscured by sticky bottom nav
 - **Fix**: Add `pb-20` or `mb-16` to wizard step containers
-
-### Bug 3: "Tap New Over to select a bowler" hint persists when bowler IS set [LOW]
-- **Location**: `apps/web/src/routes/scoring.tsx` BowlerCard fallback text
-- **Fix**: Guard hint text on `!currentBowler && innings.ballLog.length > 0`
 
 ## Completed Features
 - ✅ Cricket engine (pure functions, `lib/cricket-engine.ts`)
@@ -162,6 +176,15 @@ loadMatch: async (id) => {
 - ✅ PWA with service worker + workbox precaching
 - ✅ iOS PWA meta tags
 - ✅ Share scorecard as image (html2canvas) + text copy
+- ✅ **Dominoes tracker** (`/dominoes/*`) — match scoring, stats, teams
+- ✅ **Trump card game tracker** (`/trump/*`) — match scoring, stats, teams
+- ✅ Score tab shows "No active match" CTA instead of silent redirect
+- ✅ `allPlayers` useLiveQuery null sentinel + `isPlayersLoading` guard in ScoringPage
+- ✅ Bowler hint text when `!currentBowler && innings.ballLog.length > 0`
+- ✅ Partnership calculation includes extras (byes, no-balls) — `getCurrentPartnership` no longer filters `!b.isExtra`
+- ✅ Import validator rejects NaN/Infinity values and non-positive rule numbers (`isFiniteNumber` helper)
+- ✅ `getTopBowlers` query uses `where("format").equals(format)` + in-memory sort (avoids unindexed `orderBy("wickets")`)
+- ✅ Innings transition label shows ordinal e.g. "start innings 2/2"
 
 ## Verification Protocol
 
