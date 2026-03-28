@@ -23,6 +23,7 @@ export interface ScoringState {
   currentBowlerId: string | null
   isFreeHit: boolean
   overBalls: Ball[]
+  lastOverBalls: Ball[]      // balls from the most-recently completed over
   lastOverSummary: string
   oversBowledByBowler: Record<string, number>
   isProcessing: boolean
@@ -31,6 +32,7 @@ export interface ScoringState {
 interface ScoringActions {
   recordBall: (ball: Ball) => Promise<void>
   undoLastBall: () => Promise<void>
+  undoNBalls: (n: number) => Promise<void>
   swapStrike: () => void
   loadMatch: (matchId: string) => Promise<void>
   clearSession: () => void
@@ -208,6 +210,7 @@ function rederiveStateFromInnings(
   rules: { ballsPerOver: number }
 ): {
   overBalls: Ball[]
+  lastOverBalls: Ball[]
   lastOverSummary: string
   oversBowledByBowler: Record<string, number>
   isFreeHit: boolean
@@ -216,6 +219,7 @@ function rederiveStateFromInnings(
   if (ballLog.length === 0) {
     return {
       overBalls: [],
+      lastOverBalls: [],
       lastOverSummary: "",
       oversBowledByBowler: {},
       isFreeHit: false,
@@ -225,7 +229,6 @@ function rederiveStateFromInnings(
   const lastBall = ballLog[ballLog.length - 1]
   const isFreeHit = lastBall.nextIsFreeHit
 
-  // Current in-progress over number
   const lastOverNum = lastBall.overNumber
   const legalInLastOver = ballLog.filter(
     (b) => b.overNumber === lastOverNum && b.isLegal
@@ -233,29 +236,28 @@ function rederiveStateFromInnings(
   const lastOverComplete = legalInLastOver >= rules.ballsPerOver
 
   let overBalls: Ball[]
+  let lastOverBalls: Ball[]
   let lastOverSummary = ""
 
   if (lastOverComplete) {
-    // The last over is done — summarize the completed over, current overBalls is empty
     const completedBalls = ballLog.filter((b) => b.overNumber === lastOverNum)
-    if (completedBalls.length > 0) {
-      lastOverSummary = buildOverSummary(completedBalls)
-    }
+    lastOverBalls = completedBalls
+    lastOverSummary = completedBalls.length > 0 ? buildOverSummary(completedBalls) : ""
     overBalls = []
   } else {
-    // Still in progress
     overBalls = ballLog.filter((b) => b.overNumber === lastOverNum)
-    // Find last completed over for summary
     const completedOverNum = lastOverNum - 1
     if (completedOverNum >= 0) {
-      const prevBalls = ballLog.filter((b) => b.overNumber === completedOverNum)
-      lastOverSummary = buildOverSummary(prevBalls)
+      lastOverBalls = ballLog.filter((b) => b.overNumber === completedOverNum)
+      lastOverSummary = buildOverSummary(lastOverBalls)
+    } else {
+      lastOverBalls = []
     }
   }
 
   const oversBowledByBowler = getOversBowledByPlayer(ballLog, rules.ballsPerOver)
 
-  return { overBalls, lastOverSummary, oversBowledByBowler, isFreeHit }
+  return { overBalls, lastOverBalls, lastOverSummary, oversBowledByBowler, isFreeHit }
 }
 
 /**
@@ -297,7 +299,8 @@ function rebuildInningsFromBallLog(innings: Innings, ballsPerOver: number): void
     )
   }
 
-  // Replay every ball in the log
+  // Replay every ball in the log (O(n) — running counter avoids indexOf)
+  let legalDeliveries = 0
   for (const ball of innings.ballLog) {
     const extraDelta = getExtraRuns(ball)
     innings.extras.wide += extraDelta.wide
@@ -309,6 +312,9 @@ function rebuildInningsFromBallLog(innings: Innings, ballsPerOver: number): void
 
     innings.totalRuns += ball.runs
     if (isCountedWicket(ball)) innings.totalWickets += 1
+
+    // Advance legal-delivery counter before FOW so overs string includes this ball
+    if (ball.isLegal) legalDeliveries += 1
 
     const batsmanEntry = innings.battingCard.find(
       (e) => e.playerId === ball.batsmanId
@@ -354,11 +360,8 @@ function rebuildInningsFromBallLog(innings: Innings, ballsPerOver: number): void
         (e) => e.playerId === ball.dismissedPlayerId
       )
       if (dismissed) {
-        const legalSoFar = innings.ballLog
-          .slice(0, innings.ballLog.indexOf(ball) + 1)
-          .filter((b) => b.isLegal).length
-        const completedOvers = Math.floor(legalSoFar / ballsPerOver)
-        const rem = legalSoFar % ballsPerOver
+        const completedOvers = Math.floor(legalDeliveries / ballsPerOver)
+        const rem = legalDeliveries % ballsPerOver
         const oversStr = rem === 0 ? String(completedOvers) : `${completedOvers}.${rem}`
         innings.fallOfWickets.push({
           wicketNumber: innings.totalWickets,
@@ -372,12 +375,9 @@ function rebuildInningsFromBallLog(innings: Innings, ballsPerOver: number): void
     }
 
     if (ball.isLegal) {
-      const legalBalls = innings.ballLog
-        .slice(0, innings.ballLog.indexOf(ball) + 1)
-        .filter((b) => b.isLegal).length
-      innings.totalOvers = Math.floor(legalBalls / ballsPerOver)
-      innings.totalBalls = legalBalls % ballsPerOver
-      innings.totalLegalDeliveries = legalBalls
+      innings.totalOvers = Math.floor(legalDeliveries / ballsPerOver)
+      innings.totalBalls = legalDeliveries % ballsPerOver
+      innings.totalLegalDeliveries = legalDeliveries
     }
   }
 
@@ -404,6 +404,7 @@ const initialState: ScoringState = {
   currentBowlerId: null,
   isFreeHit: false,
   overBalls: [],
+  lastOverBalls: [],
   lastOverSummary: "",
   oversBowledByBowler: {},
   isProcessing: false,
@@ -444,8 +445,10 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
         let lastOverSummary = state.lastOverSummary
         let newBowlerId = state.currentBowlerId
 
+        let newLastOverBalls = state.lastOverBalls
         if (overCompleted) {
-          // Store summary of the just-completed over
+          // Store the balls from the just-completed over for the bowler sheet
+          newLastOverBalls = overBalls
           lastOverSummary = buildOverSummary(overBalls)
           newOverBalls = []
           // Bowler needs to change — clear currentBowlerId to force selection
@@ -496,6 +499,7 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
           currentBowlerId: newBowlerId,
           isFreeHit,
           overBalls: newOverBalls,
+          lastOverBalls: newLastOverBalls,
           lastOverSummary,
           oversBowledByBowler,
           isProcessing: false,
@@ -580,6 +584,7 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
           currentBowlerId: newBowlerId,
           isFreeHit: derived.isFreeHit,
           overBalls: derived.overBalls,
+          lastOverBalls: derived.lastOverBalls,
           lastOverSummary: derived.lastOverSummary,
           oversBowledByBowler: derived.oversBowledByBowler,
           isProcessing: false,
@@ -587,6 +592,14 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
       } catch (err) {
         set({ isProcessing: false })
         throw err
+      }
+    },
+
+    // ── undoNBalls ──────────────────────────────────────────────────────────
+
+    undoNBalls: async (n: number) => {
+      for (let i = 0; i < n; i++) {
+        await get().undoLastBall()
       }
     },
 
@@ -614,6 +627,7 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
         ? rederiveStateFromInnings(innings, match.rules)
         : {
             overBalls: [],
+            lastOverBalls: [],
             lastOverSummary: "",
             oversBowledByBowler: {},
             isFreeHit: false,
@@ -671,6 +685,7 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
         currentBowlerId,
         isFreeHit: derived.isFreeHit,
         overBalls: derived.overBalls,
+        lastOverBalls: derived.lastOverBalls,
         lastOverSummary: derived.lastOverSummary,
         oversBowledByBowler: derived.oversBowledByBowler,
         isProcessing: false,

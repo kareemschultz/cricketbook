@@ -516,15 +516,12 @@ describe("isInningsComplete", () => {
   })
 
   it("returns false when wickets fallen but maxWickets not reached", () => {
-    const innings = makeInnings({ totalWickets: 9 })
-    // With lastManStands=false, 9 wickets is not yet complete unless only 1 batsman active
-    // battingCard is empty so no active batsmen — triggers lastManStands path
     // Let's ensure 2 active batsmen so it stays live
     const innings2 = makeInnings({
       totalWickets: 8,
       battingCard: [
-        { playerId: "b1", playerName: "B1", runs: 0, balls: 0, fours: 0, sixes: 0, dots: 0, isOut: false, isRetiredHurt: false, strikeRate: 0, position: 1 },
-        { playerId: "b2", playerName: "B2", runs: 0, balls: 0, fours: 0, sixes: 0, dots: 0, isOut: false, isRetiredHurt: false, strikeRate: 0, position: 2 },
+        { playerId: "b1", playerName: "B1", runs: 0, balls: 0, fours: 0, sixes: 0, dots: 0, isOut: false, isRetiredHurt: false, strikeRate: 0, position: 1, dismissalText: "not out" },
+        { playerId: "b2", playerName: "B2", runs: 0, balls: 0, fours: 0, sixes: 0, dots: 0, isOut: false, isRetiredHurt: false, strikeRate: 0, position: 2, dismissalText: "not out" },
       ],
     })
     expect(isInningsComplete(innings2, BASE_RULES)).toBe(false)
@@ -553,8 +550,8 @@ describe("isInningsComplete", () => {
       totalRuns: 50,
       totalWickets: 3,
       battingCard: [
-        { playerId: "b1", playerName: "B1", runs: 30, balls: 20, fours: 2, sixes: 0, dots: 5, isOut: false, isRetiredHurt: false, strikeRate: 150, position: 1 },
-        { playerId: "b2", playerName: "B2", runs: 20, balls: 15, fours: 1, sixes: 0, dots: 4, isOut: false, isRetiredHurt: false, strikeRate: 133, position: 2 },
+        { playerId: "b1", playerName: "B1", runs: 30, balls: 20, fours: 2, sixes: 0, dots: 5, isOut: false, isRetiredHurt: false, strikeRate: 150, position: 1, dismissalText: "not out" },
+        { playerId: "b2", playerName: "B2", runs: 20, balls: 15, fours: 1, sixes: 0, dots: 4, isOut: false, isRetiredHurt: false, strikeRate: 133, position: 2, dismissalText: "not out" },
       ],
       ballLog: Array.from({ length: 30 }, (_, i) =>
         makeBall({ overNumber: Math.floor(i / 6), isLegal: true, deliveryNumber: i })
