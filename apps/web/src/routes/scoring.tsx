@@ -233,13 +233,19 @@ function ScoringPage({ match }: { match: Match }) {
   // where checkPostBall() never runs (because showInningsEndDialog resets to
   // false on every fresh mount). Setting state to the same value is a no-op,
   // so calling this alongside checkPostBall is safe.
+  // Defer setState so the effect body doesn't trigger synchronous re-renders.
+  // This satisfies react-hooks/set-state-in-effect while preserving the reliable
+  // overlay-open behavior on both final-ball and page-reload paths.
   useEffect(() => {
     if (!inningsIsOver) return
-    if (!isLastInnings) {
-      setShowInningsEndDialog(true)
-    } else {
-      setShowMatchEndDialog(true)
-    }
+    const id = setTimeout(() => {
+      if (!isLastInnings) {
+        setShowInningsEndDialog(true)
+      } else {
+        setShowMatchEndDialog(true)
+      }
+    }, 0)
+    return () => clearTimeout(id)
   }, [inningsIsOver, isLastInnings])
 
   // ─────────────────────────────────────────────────────────────────────────
