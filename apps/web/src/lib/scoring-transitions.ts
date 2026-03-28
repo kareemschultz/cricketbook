@@ -149,6 +149,15 @@ export function applyBallToMatch(
       rules.ballsPerOver
     )
     innings.bowlingCard[bowlerEntryIdx] = recomputed
+  } else {
+    innings.bowlingCard.push(
+      computeBowlerEntry(
+        ball.bowlerId,
+        ball.bowlerId,
+        innings.ballLog,
+        rules.ballsPerOver
+      )
+    )
   }
 
   // 7. Check if over is complete — count legal balls in this over from tail of log
@@ -359,14 +368,16 @@ export function rebuildInningsFromBallLog(innings: Innings, ballsPerOver: number
     }
   }
 
-  // Recompute all bowler entries at the end
-  for (let i = 0; i < innings.bowlingCard.length; i++) {
-    const entry = innings.bowlingCard[i]
-    innings.bowlingCard[i] = computeBowlerEntry(
-      entry.playerId,
-      entry.playerName,
-      innings.ballLog,
-      ballsPerOver
-    )
-  }
+  const existingBowlerNames = new Map(
+    innings.bowlingCard.map((entry) => [entry.playerId, entry.playerName])
+  )
+  innings.bowlingCard = [...new Set(innings.ballLog.map((ball) => ball.bowlerId))].map(
+    (playerId) =>
+      computeBowlerEntry(
+        playerId,
+        existingBowlerNames.get(playerId) ?? playerId,
+        innings.ballLog,
+        ballsPerOver
+      )
+  )
 }

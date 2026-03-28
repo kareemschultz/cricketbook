@@ -1,7 +1,7 @@
 // ─── Export / Import types ─────────────────────────────────────────────────
 //
 // ExportPayload is the canonical shape written to JSON by Settings → Export.
-// Versioned at schemaVersion 2 (covers all 15 DB tables).
+// Versioned at schemaVersion 3 (covers all 17 DB tables).
 
 import type {
   Team,
@@ -13,8 +13,18 @@ import type {
   AppSettings,
 } from "@/types/cricket"
 import type { FifaPlayer, FifaMatch } from "@/types/fifa"
-import type { DominoPlayer, DominoTeam, DominoMatch } from "@/types/dominoes"
-import type { TrumpPlayer, TrumpTeam, TrumpMatch } from "@/types/trump"
+import type {
+  DominoPlayer,
+  DominoTeam,
+  DominoMatch,
+  DominoTournament,
+} from "@/types/dominoes"
+import type {
+  TrumpPlayer,
+  TrumpTeam,
+  TrumpMatch,
+  TrumpTournament,
+} from "@/types/trump"
 
 // ─── Import mode ──────────────────────────────────────────────────────────────
 
@@ -29,7 +39,7 @@ export interface ExportIntegrity {
   /** Hash algorithm used to produce the digest. */
   algorithm: "sha256"
   /**
-   * Hex-encoded SHA-256 of the canonical JSON representation of the 15 data
+   * Hex-encoded SHA-256 of the canonical JSON representation of the 17 data
    * tables (in EXPORT_TABLE_KEYS order). Metadata fields (exportedAt, version,
    * schemaVersion, integrity) are excluded from the hash input so that
    * re-exporting identical data always produces the same hash.
@@ -39,11 +49,11 @@ export interface ExportIntegrity {
 
 // ─── Payload ──────────────────────────────────────────────────────────────────
 
-/** Full export payload — schema version 2. */
+/** Full export payload — schema version 3. */
 export interface ExportPayload {
   exportedAt: string
   version: string
-  schemaVersion: 2
+  schemaVersion: 3
   integrity: ExportIntegrity
   // Cricket
   teams: Team[]
@@ -59,10 +69,12 @@ export interface ExportPayload {
   dominoPlayers: DominoPlayer[]
   dominoTeams: DominoTeam[]
   dominoMatches: DominoMatch[]
+  dominoTournaments: DominoTournament[]
   // Trump
   trumpPlayers: TrumpPlayer[]
   trumpTeams: TrumpTeam[]
   trumpMatches: TrumpMatch[]
+  trumpTournaments: TrumpTournament[]
   // Settings (singleton array, always length 0 or 1)
   settings: (AppSettings & { id: string })[]
 }
@@ -70,7 +82,7 @@ export interface ExportPayload {
 // ─── Canonical table key order (used for integrity hash) ──────────────────────
 
 /**
- * Fixed ordering of the 15 data-table keys used when computing the integrity
+ * Fixed ordering of the 17 data-table keys used when computing the integrity
  * hash. This order must never change — changing it would invalidate all
  * previously exported hashes.
  */
@@ -86,9 +98,11 @@ export const EXPORT_TABLE_KEYS = [
   "dominoPlayers",
   "dominoTeams",
   "dominoMatches",
+  "dominoTournaments",
   "trumpPlayers",
   "trumpTeams",
   "trumpMatches",
+  "trumpTournaments",
   "settings",
 ] as const
 

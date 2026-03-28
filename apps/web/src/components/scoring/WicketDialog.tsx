@@ -12,7 +12,6 @@ import { Input } from "@workspace/ui/components/input"
 import { cn } from "@workspace/ui/lib/utils"
 import type {
   BatsmanEntry,
-  BowlerEntry,
   DismissalType,
   Player,
 } from "@/types/cricket"
@@ -32,7 +31,6 @@ interface WicketDialogProps {
   }) => void
   striker: BatsmanEntry
   nonStriker: BatsmanEntry
-  bowler: BowlerEntry
   allPlayersInField: Player[]
   isFreeHit: boolean
 }
@@ -59,7 +57,6 @@ export function WicketDialog({
   onConfirm,
   striker,
   nonStriker,
-  bowler: _bowler,
   allPlayersInField,
   isFreeHit,
 }: WicketDialogProps) {

@@ -363,25 +363,37 @@ describe("canBowl", () => {
 // ─── getRemainingBalls ────────────────────────────────────────────────────────
 
 describe("getRemainingBalls", () => {
-  const makeInnings = (legalBalls: number) => ({
-    ballLog: Array.from({ length: legalBalls }, () => makeBall({ isLegal: true })),
-  } as any)
-
   it("returns null for unlimited overs (Test)", () => {
     const rules = { ...BASE_RULES, oversPerInnings: null }
-    expect(getRemainingBalls(makeInnings(0), rules)).toBeNull()
+    expect(getRemainingBalls(makeInnings(), rules)).toBeNull()
   })
 
   it("returns full ball count at start of innings", () => {
-    expect(getRemainingBalls(makeInnings(0), BASE_RULES)).toBe(120) // 20*6
+    expect(getRemainingBalls(makeInnings(), BASE_RULES)).toBe(120) // 20*6
   })
 
   it("decrements as balls are bowled", () => {
-    expect(getRemainingBalls(makeInnings(10), BASE_RULES)).toBe(110)
+    expect(
+      getRemainingBalls(
+        makeInnings({
+          totalLegalDeliveries: 10,
+          ballLog: Array.from({ length: 10 }, () => makeBall({ isLegal: true })),
+        }),
+        BASE_RULES
+      )
+    ).toBe(110)
   })
 
   it("clamps to 0 (never negative)", () => {
-    expect(getRemainingBalls(makeInnings(121), BASE_RULES)).toBe(0)
+    expect(
+      getRemainingBalls(
+        makeInnings({
+          totalLegalDeliveries: 121,
+          ballLog: Array.from({ length: 121 }, () => makeBall({ isLegal: true })),
+        }),
+        BASE_RULES
+      )
+    ).toBe(0)
   })
 })
 
@@ -506,6 +518,31 @@ describe("getCurrentPartnership", () => {
     expect(p.batsman2Runs).toBe(3)
     expect(p.balls).toBe(3)
   })
+
+  it("only counts runs from the current stand", () => {
+    const ballLog = [
+      makeBall({ batsmanId: "bat1", runs: 2, batsmanRuns: 2, deliveryNumber: 0 }),
+      makeBall({
+        batsmanId: "bat1",
+        runs: 0,
+        batsmanRuns: 0,
+        isWicket: true,
+        dismissalType: "bowled",
+        dismissedPlayerId: "bat1",
+        deliveryNumber: 1,
+      }),
+      makeBall({ batsmanId: "bat2", runs: 1, batsmanRuns: 1, deliveryNumber: 2 }),
+      makeBall({ batsmanId: "bat3", runs: 4, batsmanRuns: 4, deliveryNumber: 3 }),
+    ]
+
+    const p = getCurrentPartnership(ballLog, "bat2", "bat3", 1, 7)
+
+    expect(p.runs).toBe(5)
+    expect(p.batsman1Runs).toBe(1)
+    expect(p.batsman2Runs).toBe(4)
+    expect(p.startScore).toBe(2)
+    expect(p.endScore).toBe(7)
+  })
 })
 
 // ─── isInningsComplete ────────────────────────────────────────────────────────
@@ -516,6 +553,9 @@ function makeInnings(overrides: Partial<Innings> = {}): Innings {
     battingTeamId: "t1",
     bowlingTeamId: "t2",
     status: "live",
+    currentStrikerId: null,
+    currentNonStrikerId: null,
+    currentBowlerId: null,
     totalRuns: 0,
     totalWickets: 0,
     totalOvers: 0,

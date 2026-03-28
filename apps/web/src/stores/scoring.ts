@@ -136,6 +136,10 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
           rules.ballsPerOver
         )
 
+        innings.currentStrikerId = onStrike
+        innings.currentNonStrikerId = offStrike
+        innings.currentBowlerId = newBowlerId
+
         // Persist to Dexie
         await db.matches.put(match)
 
@@ -222,6 +226,10 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
         // the previous bowler needs restoring. Use bowlerId from the popped ball.
         const newBowlerId = poppedBall.bowlerId
 
+        targetInnings.currentStrikerId = onStrike
+        targetInnings.currentNonStrikerId = offStrike
+        targetInnings.currentBowlerId = newBowlerId
+
         // Persist
         await db.matches.put(match)
 
@@ -296,7 +304,17 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
       let offStrike: string | null = null
       let currentBowlerId: string | null = lastBall?.bowlerId ?? null
 
-      if (lastBall) {
+      const hasPersistedParticipants = innings
+        ? innings.currentStrikerId !== undefined ||
+          innings.currentNonStrikerId !== undefined ||
+          innings.currentBowlerId !== undefined
+        : false
+
+      if (innings && hasPersistedParticipants) {
+        onStrike = innings.currentStrikerId ?? null
+        offStrike = innings.currentNonStrikerId ?? null
+        currentBowlerId = innings.currentBowlerId ?? null
+      } else if (lastBall) {
         // After last ball, determine if strike swapped
         const swapped = shouldSwapStrikeAfterBall(lastBall, match.rules.wideRuns)
         const overDone = isOverComplete(ballLog, lastBall.overNumber, match.rules)
@@ -319,11 +337,19 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
 
         onStrike = striker
         offStrike = nonStriker
-      } else if (activeBatsmen.length >= 2) {
-        onStrike = activeBatsmen[0].playerId
-        offStrike = activeBatsmen[1].playerId
-      } else if (activeBatsmen.length === 1) {
-        onStrike = activeBatsmen[0].playerId
+      } else {
+        const likelyOpeners = activeBatsmen
+          .slice()
+          .sort((a, b) => a.position - b.position)
+
+        if (likelyOpeners.length >= 2) {
+          onStrike = likelyOpeners[0].playerId
+          offStrike = likelyOpeners[1].playerId
+        } else if (likelyOpeners.length === 1) {
+          onStrike = likelyOpeners[0].playerId
+        }
+
+        currentBowlerId = innings?.bowlingCard[0]?.playerId ?? null
       }
 
       set({

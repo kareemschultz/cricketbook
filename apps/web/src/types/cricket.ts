@@ -293,6 +293,9 @@ export interface Innings {
   battingTeamId: string
   bowlingTeamId: string
   status: InningsStatus
+  currentStrikerId?: string | null
+  currentNonStrikerId?: string | null
+  currentBowlerId?: string | null
   totalRuns: number
   totalWickets: number
   totalOvers: number           // completed overs

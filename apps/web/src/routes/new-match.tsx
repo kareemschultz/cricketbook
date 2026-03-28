@@ -884,8 +884,6 @@ function Step4PlayingXI({
 // ─── Step 5: Openers, Captain & Keeper ────────────────────────────────────────
 
 interface Step5Props {
-  battingTeamId: string
-  bowlingTeamId: string
   battingTeamName: string
   bowlingTeamName: string
   team1Name: string
@@ -910,9 +908,108 @@ interface Step5Props {
   onWicketKeeperTeam2: (id: string) => void
 }
 
+interface PlayerSelectorProps {
+  title: string
+  playerIds: string[]
+  selected: string | null
+  disabledIds: string[]
+  playerMap?: Record<string, Player>
+  onSelect: (id: string) => void
+}
+
+function Step5PlayerSelector({
+  title,
+  playerIds,
+  selected,
+  disabledIds,
+  playerMap,
+  onSelect,
+}: PlayerSelectorProps) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        {title}
+      </p>
+      <div className="space-y-1.5">
+        {playerIds.map((pid) => {
+          const player = playerMap?.[pid]
+          const isSelected = selected === pid
+          const isDisabled = disabledIds.includes(pid)
+          return (
+            <button
+              key={pid}
+              disabled={isDisabled}
+              onClick={() => onSelect(pid)}
+              className={[
+                "w-full flex items-center gap-3 rounded-lg border px-3 py-3 text-left transition-colors",
+                isSelected
+                  ? "border-primary bg-primary/10"
+                  : isDisabled
+                  ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
+                  : "border-border bg-card hover:bg-muted/50",
+              ].join(" ")}
+            >
+              <div
+                className={[
+                  "size-5 rounded-full border-2 shrink-0",
+                  isSelected ? "border-primary bg-primary" : "border-muted-foreground/30",
+                ].join(" ")}
+              />
+              <span className="text-sm font-medium">
+                {player?.name ?? pid}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+interface RoleChipSelectorProps {
+  teamName: string
+  playerIds: string[]
+  selected: string | null
+  playerMap?: Record<string, Player>
+  onSelect: (id: string) => void
+}
+
+function Step5RoleChipSelector({
+  teamName,
+  playerIds,
+  selected,
+  playerMap,
+  onSelect,
+}: RoleChipSelectorProps) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-medium text-muted-foreground">{teamName}</p>
+      <div className="flex flex-wrap gap-1">
+        {playerIds.map((pid) => {
+          const player = playerMap?.[pid]
+          const firstName = player?.name?.split(" ")[0] ?? "..."
+          const isSelected = selected === pid
+          return (
+            <button
+              key={pid}
+              onClick={() => onSelect(pid)}
+              className={[
+                "px-2 py-1 rounded-md border text-[11px] font-medium transition-colors",
+                isSelected
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-muted/40 border-border text-foreground/70 hover:bg-muted/70",
+              ].join(" ")}
+            >
+              {firstName}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function Step5Openers({
-  battingTeamId: _battingTeamId,
-  bowlingTeamId: _bowlingTeamId,
   battingTeamName,
   bowlingTeamName,
   team1Name,
@@ -946,120 +1043,28 @@ function Step5Openers({
     return map
   }, [battingXI, bowlingXI])
 
-  function PlayerSelector({
-    title,
-    playerIds,
-    selected,
-    disabledIds,
-    onSelect,
-  }: {
-    title: string
-    playerIds: string[]
-    selected: string | null
-    disabledIds: string[]
-    onSelect: (id: string) => void
-  }) {
-    return (
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          {title}
-        </p>
-        <div className="space-y-1.5">
-          {playerIds.map((pid) => {
-            const player = allPlayers?.[pid]
-            const isSelected = selected === pid
-            const isDisabled = disabledIds.includes(pid)
-            return (
-              <button
-                key={pid}
-                disabled={isDisabled}
-                onClick={() => onSelect(pid)}
-                className={[
-                  "w-full flex items-center gap-3 rounded-lg border px-3 py-3 text-left transition-colors",
-                  isSelected
-                    ? "border-primary bg-primary/10"
-                    : isDisabled
-                    ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
-                    : "border-border bg-card hover:bg-muted/50",
-                ].join(" ")}
-              >
-                <div
-                  className={[
-                    "size-5 rounded-full border-2 shrink-0",
-                    isSelected ? "border-primary bg-primary" : "border-muted-foreground/30",
-                  ].join(" ")}
-                />
-                <span className="text-sm font-medium">
-                  {player?.name ?? pid}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
-
-  // Compact chip selector for captain/keeper
-  function RoleChipSelector({
-    teamName,
-    playerIds,
-    selected,
-    onSelect,
-  }: {
-    teamName: string
-    playerIds: string[]
-    selected: string | null
-    onSelect: (id: string) => void
-  }) {
-    return (
-      <div className="space-y-1.5">
-        <p className="text-[11px] font-medium text-muted-foreground">{teamName}</p>
-        <div className="flex flex-wrap gap-1">
-          {playerIds.map((pid) => {
-            const player = allPlayers?.[pid]
-            const firstName = player?.name?.split(" ")[0] ?? "…"
-            const isSelected = selected === pid
-            return (
-              <button
-                key={pid}
-                onClick={() => onSelect(pid)}
-                className={[
-                  "px-2 py-1 rounded-md border text-[11px] font-medium transition-colors",
-                  isSelected
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-muted/40 border-border text-foreground/70 hover:bg-muted/70",
-                ].join(" ")}
-              >
-                {firstName}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="px-4 space-y-6">
       <div>
         <p className="text-xs text-muted-foreground mb-1">Batting: <strong>{battingTeamName}</strong></p>
-        <PlayerSelector
+        <Step5PlayerSelector
           title="Striker (on strike)"
           playerIds={battingXI}
           selected={striker}
           disabledIds={nonStriker ? [nonStriker] : []}
+          playerMap={allPlayers}
           onSelect={onStriker}
         />
       </div>
 
       <Separator />
 
-      <PlayerSelector
+      <Step5PlayerSelector
         title="Non-striker"
         playerIds={battingXI}
         selected={nonStriker}
         disabledIds={striker ? [striker] : []}
+        playerMap={allPlayers}
         onSelect={onNonStriker}
       />
 
@@ -1067,11 +1072,12 @@ function Step5Openers({
 
       <div>
         <p className="text-xs text-muted-foreground mb-1">Bowling: <strong>{bowlingTeamName}</strong></p>
-        <PlayerSelector
+        <Step5PlayerSelector
           title="Opening bowler"
           playerIds={bowlingXI}
           selected={openingBowler}
           disabledIds={[]}
+          playerMap={allPlayers}
           onSelect={onOpeningBowler}
         />
       </div>
@@ -1087,16 +1093,18 @@ function Step5Openers({
         <div className="space-y-1">
           <p className="text-xs font-medium text-foreground/80">Captain (c)</p>
           <div className="grid grid-cols-1 gap-3">
-            <RoleChipSelector
+            <Step5RoleChipSelector
               teamName={team1Name}
               playerIds={playingXI1}
               selected={captainTeam1Id}
+              playerMap={allPlayers}
               onSelect={onCaptainTeam1}
             />
-            <RoleChipSelector
+            <Step5RoleChipSelector
               teamName={team2Name}
               playerIds={playingXI2}
               selected={captainTeam2Id}
+              playerMap={allPlayers}
               onSelect={onCaptainTeam2}
             />
           </div>
@@ -1105,16 +1113,18 @@ function Step5Openers({
         <div className="space-y-1">
           <p className="text-xs font-medium text-foreground/80">Wicket-keeper (wk)</p>
           <div className="grid grid-cols-1 gap-3">
-            <RoleChipSelector
+            <Step5RoleChipSelector
               teamName={team1Name}
               playerIds={playingXI1}
               selected={wicketKeeperTeam1Id}
+              playerMap={allPlayers}
               onSelect={onWicketKeeperTeam1}
             />
-            <RoleChipSelector
+            <Step5RoleChipSelector
               teamName={team2Name}
               playerIds={playingXI2}
               selected={wicketKeeperTeam2Id}
+              playerMap={allPlayers}
               onSelect={onWicketKeeperTeam2}
             />
           </div>
@@ -1230,9 +1240,7 @@ function NewMatchPage() {
         if (p) playerMap[p.id] = p
       }
 
-      const battingXIOrdered = battingTeamId === team1Id ? playingXI1 : playingXI2
-
-      const battingCard = battingXIOrdered.map((playerId, i) => ({
+      const battingCard = [striker, nonStriker].map((playerId, i) => ({
         playerId,
         playerName: playerMap[playerId]?.name ?? playerId,
         position: i + 1,
@@ -1245,13 +1253,33 @@ function NewMatchPage() {
         isOut: false,
         isRetiredHurt: false,
         dismissalText: "not out" as string,
+        comeInOver: 0,
+        comeInScore: 0,
       }))
+
+      const bowlingCard = [{
+        playerId: openingBowler,
+        playerName: playerMap[openingBowler]?.name ?? openingBowler,
+        overs: 0,
+        balls: 0,
+        maidens: 0,
+        runs: 0,
+        wickets: 0,
+        economy: 0,
+        dots: 0,
+        wides: 0,
+        noBalls: 0,
+        legalDeliveries: 0,
+      }]
 
       const firstInnings: Innings = {
         index: 0,
         battingTeamId,
         bowlingTeamId,
         status: "live",
+        currentStrikerId: striker,
+        currentNonStrikerId: nonStriker,
+        currentBowlerId: openingBowler,
         totalRuns: 0,
         totalWickets: 0,
         totalOvers: 0,
@@ -1259,7 +1287,7 @@ function NewMatchPage() {
         totalLegalDeliveries: 0,
         extras: { wide: 0, noBall: 0, bye: 0, legBye: 0, penalty: 0, total: 0 },
         battingCard,
-        bowlingCard: [],
+        bowlingCard,
         ballLog: [],
         fallOfWickets: [],
         partnerships: [],
@@ -1291,15 +1319,8 @@ function NewMatchPage() {
 
       await db.matches.add(match)
 
-      // Bootstrap scoring store with opener state
+      // Bootstrap scoring store from the persisted innings state
       await loadMatch(match.id)
-
-      // Override store with selected openers & bowler
-      useScoringStore.setState({
-        onStrikeBatsmanId: striker,
-        offStrikeBatsmanId: nonStriker,
-        currentBowlerId: openingBowler,
-      })
 
       navigate({ to: "/scoring" })
     } finally {
@@ -1440,8 +1461,6 @@ function NewMatchPage() {
             team1Id &&
             team2Id && (
               <Step5Openers
-                battingTeamId={battingTeamId}
-                bowlingTeamId={bowlingTeamId}
                 battingTeamName={
                   battingTeamId === team1Id
                     ? team1?.name ?? "Team A"

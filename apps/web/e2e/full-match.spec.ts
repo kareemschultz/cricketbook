@@ -139,10 +139,16 @@ test.describe("Full match flow", () => {
       .click()
     await page.locator("button", { hasText: "Start Match" }).click()
 
-    // ── 4. Wait for scoring page ───────────────────────────────────────────────
+    // ── 4. Wait for scoring page and verify reload recovery ───────────────────
     // TanStack Router navigates to #/scoring after wizard completes.
     // waitForURL works here because it matches against the full URL (incl. hash).
     await page.waitForURL(/\/scoring/, { timeout: 15000 })
+    await page.reload()
+    await page.waitForLoadState("networkidle")
+    await page.waitForURL(/\/scoring/, { timeout: 15000 })
+    await expect(page.locator("text=Alice").first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator("text=Bob").first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator("text=Charlie").first()).toBeVisible({ timeout: 5000 })
 
     // ── 5. Score first innings — 6 × 1 run (1 over) ───────────────────────────
     // Run buttons are plain numbers (0–6) in a grid — no aria-labels.
@@ -179,16 +185,12 @@ test.describe("Full match flow", () => {
     await page.locator("button", { hasText: "Diana" }).first().click()
 
     // ── 7. Score second innings ────────────────────────────────────────────────
-    // Use 2-run balls (even): shouldSwapStrikeAfterBall(batsmanRuns % 2 === 1) returns
-    // false for 2 runs → striker stays set. With offStrikeBatsmanId = null (handleNewBatsmanSelect
-    // always sets onStrikeBatsmanId, never offStrikeBatsmanId), odd-run balls would swap
-    // striker to null immediately, permanently disabling canScore.
-    //
-    // The second innings ends when totalRuns >= target (isInningsComplete line 165),
-    // which happens before 6 balls if the target is low. Loop exits early on match end.
+    // Use 1-run balls here so strike swaps every delivery. This catches the old
+    // non-striker bug immediately if offStrikeBatsmanId is not persisted/set.
+    // The second innings ends when totalRuns >= target, so the loop exits early.
     for (let i = 0; i < 6; i++) {
       if (await page.locator("text=Match Result").isVisible()) break
-      await page.locator("button").filter({ hasText: /^2$/ }).first().click()
+      await page.locator("button").filter({ hasText: /^1$/ }).first().click()
       await page.waitForTimeout(400)
     }
 
@@ -208,7 +210,7 @@ test.describe("Full match flow", () => {
     const fs = await import("fs")
     const exportContent = fs.readFileSync(exportPath!, "utf-8")
     const exportData = JSON.parse(exportContent) as Record<string, unknown>
-    expect(exportData.schemaVersion).toBe(2)
+    expect(exportData.schemaVersion).toBe(3)
     expect(Array.isArray(exportData.teams)).toBe(true)
     expect((exportData.teams as unknown[]).length).toBeGreaterThanOrEqual(2)
     expect(Array.isArray(exportData.players)).toBe(true)
@@ -230,7 +232,7 @@ test.describe("Full match flow", () => {
     await spaNavigate(page, "/settings")
 
     await page.locator("button", { hasText: "Import" }).first().click()
-    await expect(page.locator("text=Back up before importing?")).toBeVisible({ timeout: 3000 })
+    await expect(page.locator("text=Import data")).toBeVisible({ timeout: 3000 })
 
     // "Skip backup — Import" triggers a programmatic file input + alert on success.
     const dialogPromise = page.waitForEvent("dialog")

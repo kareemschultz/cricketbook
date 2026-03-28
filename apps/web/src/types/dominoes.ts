@@ -35,6 +35,8 @@ export interface DominoMatch {
   team2Score: number
   winnerId: string | null
   status: "live" | "completed" | "abandoned"
+  tournamentId?: string
+  tournamentFixtureId?: string
   notes?: string
 }
 
@@ -105,4 +107,56 @@ export interface DominoH2HRecord {
   lost: number
   handsWon: number
   handsLost: number
+}
+
+// ─── Tournaments ─────────────────────────────────────────────────────────────
+
+export type DominoTournamentFormat = "ROUND_ROBIN" | "KNOCKOUT"
+export type DominoTournamentStatus = "upcoming" | "live" | "completed"
+export type DominoTournamentFixtureResult = "team1" | "team2" | "abandoned" | null
+export type DominoTournamentPhase = "league" | "knockout"
+
+export interface DominoTournamentFixture {
+  id: string
+  tournamentId: string
+  matchId?: string
+  team1Id: string
+  team2Id: string
+  round: number
+  phase: DominoTournamentPhase
+  scheduledDate?: Date
+  result: DominoTournamentFixtureResult
+  pointsTeam1?: number
+  pointsTeam2?: number
+}
+
+export interface DominoTournament {
+  id: string
+  name: string
+  format: DominoTournamentFormat
+  teamIds: string[]
+  fixtures: DominoTournamentFixture[]
+  status: DominoTournamentStatus
+  pointsPerWin: number
+  pointsPerAbandoned: number
+  championTeamId?: string
+  createdAt: Date
+  completedAt?: Date
+}
+
+export interface DominoTournamentStanding {
+  teamId: string
+  teamName: string
+  colorHex: string
+  played: number
+  won: number
+  lost: number
+  abandoned: number
+  points: number
+  handsWon: number
+  handsLost: number
+  handDiff: number
+  matchPointsFor: number
+  matchPointsAgainst: number
+  sixLoves: number
 }

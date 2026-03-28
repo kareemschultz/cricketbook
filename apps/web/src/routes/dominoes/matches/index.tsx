@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks"
 import { format } from "date-fns"
 import { Plus } from "lucide-react"
 import { motion } from "framer-motion"
+import { useState } from "react"
 import { db } from "@/db/index"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
@@ -32,16 +33,38 @@ function TeamAvatar({ name, color }: { name: string; color: string }) {
 
 function DominoMatchesPage() {
   const navigate = useNavigate()
+  const [selectedFilter, setSelectedFilter] = useState<string>("all")
 
   const data = useLiveQuery(async () => {
     const matches = await db.dominoMatches.orderBy("date").reverse().toArray()
     const teams = await db.dominoTeams.toArray()
+    const tournaments = await db.dominoTournaments.toArray()
     const teamMap = new Map(teams.map((t) => [t.id, t]))
-    return matches.map((m) => ({
-      ...m,
-      t1: teamMap.get(m.team1Id),
-      t2: teamMap.get(m.team2Id),
-    }))
+    const tournamentMap = new Map(tournaments.map((tournament) => [tournament.id, tournament]))
+    return {
+      tournaments: tournaments.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
+      matches: matches.map((m) => ({
+        ...m,
+        t1: teamMap.get(m.team1Id),
+        t2: teamMap.get(m.team2Id),
+        tournament: m.tournamentId ? tournamentMap.get(m.tournamentId) : undefined,
+      })),
+    }
+  })
+
+  const tournaments = data?.tournaments ?? []
+  const activeFilter =
+    selectedFilter === "all" ||
+    selectedFilter === "casual" ||
+    tournaments.some((tournament) => tournament.id === selectedFilter)
+      ? selectedFilter
+      : "all"
+  const filteredMatches = (data?.matches ?? []).filter((match) => {
+    if (activeFilter === "all") return true
+    if (activeFilter === "casual") return !match.tournamentId
+    return match.tournamentId === activeFilter
   })
 
   return (
@@ -57,7 +80,11 @@ function DominoMatchesPage() {
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold tracking-tight">Match History</h1>
-          <Button size="sm" onClick={() => navigate({ to: "/dominoes/matches/new" })} className="gap-1">
+          <Button
+            size="sm"
+            onClick={() => navigate({ to: "/dominoes/matches/new", search: { tournamentId: undefined, fixtureId: undefined } })}
+            className="gap-1"
+          >
             <Plus className="size-4" />
             New Match
           </Button>
@@ -65,27 +92,91 @@ function DominoMatchesPage() {
       </div>
 
       <div className="px-4 py-4">
+        {tournaments.length > 0 && (
+          <div className="mb-4 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Filter Matches
+            </p>
+            <div className="-mx-4 overflow-x-auto px-4">
+              <div className="flex gap-2 min-w-max">
+                {[
+                  { id: "all", label: "All Matches" },
+                  { id: "casual", label: "Casual" },
+                  ...tournaments.map((tournament) => ({
+                    id: tournament.id,
+                    label: tournament.name,
+                  })),
+                ].map((filter) => (
+                  <button
+                    key={filter.id}
+                    onClick={() => setSelectedFilter(filter.id)}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      activeFilter === filter.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                    )}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {filteredMatches.length} match{filteredMatches.length === 1 ? "" : "es"} shown
+            </p>
+          </div>
+        )}
+
         {!data ? (
           <div className="space-y-2">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
             ))}
           </div>
-        ) : data.length === 0 ? (
+        ) : filteredMatches.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center space-y-3">
               <p className="text-3xl">🁣</p>
-              <p className="text-sm font-medium">No matches yet</p>
-              <p className="text-xs text-muted-foreground">Record your first dominoes match to get started</p>
-              <Button onClick={() => navigate({ to: "/dominoes/matches/new" })} variant="outline" className="mt-2">
-                <Plus className="size-4 mr-2" />
-                Record First Match
-              </Button>
+              <p className="text-sm font-medium">
+                {activeFilter === "all" ? "No matches yet" : "No matches in this view"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {activeFilter === "casual"
+                  ? "Tournament fixtures are saved separately from casual games."
+                  : activeFilter === "all"
+                  ? "Record your first dominoes match to get started."
+                  : "This tournament has no recorded fixtures yet."}
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  onClick={() => navigate({ to: "/dominoes/matches/new", search: { tournamentId: undefined, fixtureId: undefined } })}
+                  variant="outline"
+                  className="mt-2"
+                >
+                  <Plus className="size-4 mr-2" />
+                  Record Match
+                </Button>
+                {activeFilter !== "all" && activeFilter !== "casual" && (
+                  <Button
+                    onClick={() =>
+                      navigate({
+                        to: "/dominoes/tournaments/$tournamentId",
+                        params: { tournamentId: activeFilter },
+                      })
+                    }
+                    variant="outline"
+                    className="mt-2"
+                  >
+                    Open Tournament
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         ) : (
           <motion.div className="space-y-2" initial="hidden" animate="visible" variants={containerVariants}>
-            {data.map((m) => {
+            {filteredMatches.map((m) => {
               const t1Wins = m.winnerId === m.team1Id
               const isSixLove = (t1Wins && m.team2Score === 0) || (!t1Wins && m.team1Score === 0)
 
@@ -124,6 +215,20 @@ function DominoMatchesPage() {
                           {t1Wins ? m.t1?.name : m.t2?.name} wins{isSixLove ? " (6-love!)" : ""}
                         </span>
                       </div>
+                      {m.tournament && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate({
+                              to: "/dominoes/tournaments/$tournamentId",
+                              params: { tournamentId: m.tournament!.id },
+                            })
+                          }
+                          className="mt-1 text-[10px] font-medium text-amber-500 hover:underline"
+                        >
+                          {m.tournament.name}
+                        </button>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>

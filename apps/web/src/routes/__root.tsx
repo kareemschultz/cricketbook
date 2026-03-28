@@ -1,5 +1,5 @@
 import { createRootRoute, Link, Outlet, useRouterState } from "@tanstack/react-router"
-import { Home, Activity, Clock, BarChart2, Users, Sword, Grid3x3, X, Download, Dice5, Spade } from "lucide-react"
+import { Home, Activity, Clock, BarChart2, Users, Sword, Grid3x3, X, Download, Dice5, Spade, Trophy } from "lucide-react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { AnimatePresence, motion } from "framer-motion"
 import { useEffect, useRef, useState } from "react"
@@ -26,12 +26,14 @@ const FIFA_NAV = [
 const DOMINOES_NAV = [
   { to: "/dominoes", label: "Home", icon: Home, exact: true },
   { to: "/dominoes/matches", label: "Matches", icon: Dice5, exact: false },
+  { to: "/dominoes/tournaments", label: "Tournaments", icon: Trophy, exact: false },
   { to: "/dominoes/teams", label: "Teams", icon: Users, exact: false },
 ] as const
 
 const TRUMP_NAV = [
   { to: "/trump", label: "Home", icon: Home, exact: true },
   { to: "/trump/matches", label: "Matches", icon: Spade, exact: false },
+  { to: "/trump/tournaments", label: "Tournaments", icon: Trophy, exact: false },
   { to: "/trump/teams", label: "Teams", icon: Users, exact: false },
 ] as const
 
@@ -310,16 +312,16 @@ function PwaInstallPrompt() {
 function RootLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { match, loadMatch } = useScoringStore()
+  const hasCheckedForLiveMatch = useRef(false)
 
   // Rehydrate scoring store from Dexie on app startup if there's a live match
   useEffect(() => {
-    if (match) return // already loaded
+    if (match || hasCheckedForLiveMatch.current) return
+    hasCheckedForLiveMatch.current = true
     db.matches.where("status").equals("live").first().then((liveMatch) => {
-      if (liveMatch) loadMatch(liveMatch.id)
+      if (liveMatch) void loadMatch(liveMatch.id)
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: one-shot startup effect.
-  // Including match or loadMatch would re-run on every ball tap (match changes), not just on mount.
-  }, [])
+  }, [loadMatch, match])
 
   return (
     <div

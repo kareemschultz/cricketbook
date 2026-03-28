@@ -121,7 +121,7 @@ function FifaPlayerProfilePage() {
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate({ to: "/fifa/players" as "/fifa/players" })}
+            onClick={() => navigate({ to: "/fifa/players" as const })}
             className="size-8 rounded-full bg-muted/50 flex items-center justify-center"
           >
             <ArrowLeft className="size-4" />

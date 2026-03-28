@@ -8,7 +8,7 @@ export default defineConfig({
   retries: 0,
   reporter: "list",
   use: {
-    baseURL: "http://localhost:5174",
+    baseURL: "http://127.0.0.1:4173",
     headless: true,
     // Clear IndexedDB between tests via storageState
     storageState: { cookies: [], origins: [] },
@@ -19,5 +19,10 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  // Dev server is already running — don't start a new one
+  webServer: {
+    command: "bun run dev -- --host 127.0.0.1 --port 4173",
+    url: "http://127.0.0.1:4173/scoreflow/",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
 })

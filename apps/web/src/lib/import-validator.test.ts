@@ -34,6 +34,32 @@ function makeMatch(overrides: Record<string, unknown> = {}) {
 function makeTournament(overrides: Record<string, unknown> = {}) {
   return { id: "tr1", name: "Cup 2024", format: "ROUND_ROBIN", status: "upcoming", fixtures: [], ...overrides }
 }
+function makeDominoTournament(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "dt1",
+    name: "Domino Cup",
+    format: "ROUND_ROBIN",
+    status: "upcoming",
+    teamIds: ["dt-a", "dt-b"],
+    fixtures: [],
+    pointsPerWin: 2,
+    pointsPerAbandoned: 1,
+    ...overrides,
+  }
+}
+function makeTrumpTournament(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "tt1",
+    name: "Trump Cup",
+    format: "ROUND_ROBIN",
+    status: "upcoming",
+    teamIds: ["tt-a", "tt-b"],
+    fixtures: [],
+    pointsPerWin: 2,
+    pointsPerAbandoned: 1,
+    ...overrides,
+  }
+}
 function makeBattingStats(overrides: Record<string, unknown> = {}) {
   return { id: "p1_T20", playerId: "p1", format: "T20", matches: 5, innings: 5, ...overrides }
 }
@@ -50,6 +76,8 @@ describe("validateImportPayload", () => {
       players: [makePlayer()],
       matches: [makeMatch()],
       tournaments: [makeTournament()],
+      dominoTournaments: [makeDominoTournament()],
+      trumpTournaments: [makeTrumpTournament()],
       battingStats: [makeBattingStats()],
       bowlingStats: [makeBowlingStats()],
     }
@@ -132,6 +160,16 @@ describe("validateImportPayload", () => {
   it("errors on tournament with invalid status", () => {
     const errors = validateImportPayload({ tournaments: [makeTournament({ status: "archived" })] })
     expect(errors.some((e) => e.issue.includes("status"))).toBe(true)
+  })
+
+  it("errors on domino tournament with invalid format", () => {
+    const errors = validateImportPayload({ dominoTournaments: [makeDominoTournament({ format: "GROUPS" })] })
+    expect(errors.some((e) => e.table === "dominoTournaments" && e.issue.includes("format"))).toBe(true)
+  })
+
+  it("errors on trump tournament with invalid status", () => {
+    const errors = validateImportPayload({ trumpTournaments: [makeTrumpTournament({ status: "archived" })] })
+    expect(errors.some((e) => e.table === "trumpTournaments" && e.issue.includes("status"))).toBe(true)
   })
 
   // ── battingStats / bowlingStats ──

@@ -11,6 +11,7 @@ import type {
 } from "@/types/cricket"
 import {
   BOWLER_CREDITED,
+  WICKET_DISMISSALS,
 } from "@/types/cricket"
 
 // ─── Over display helpers ─────────────────────────────────────────────────────
@@ -219,7 +220,23 @@ export function getCurrentPartnership(
   wicketNumber: number,
   inningsScore: number
 ): Partnership {
-  const partnershipBalls = ballLog.filter(
+  let partnershipStartIndex = 0
+
+  if (wicketNumber > 0) {
+    let countedWickets = 0
+    for (let i = 0; i < ballLog.length; i++) {
+      const ball = ballLog[i]
+      if (ball.isWicket && ball.dismissalType && WICKET_DISMISSALS.includes(ball.dismissalType)) {
+        countedWickets += 1
+        if (countedWickets === wicketNumber) {
+          partnershipStartIndex = i + 1
+          break
+        }
+      }
+    }
+  }
+
+  const partnershipBalls = ballLog.slice(partnershipStartIndex).filter(
     (b) => b.batsmanId === batsman1Id || b.batsmanId === batsman2Id
   )
   const runs = partnershipBalls.reduce((sum, b) => sum + b.runs, 0)

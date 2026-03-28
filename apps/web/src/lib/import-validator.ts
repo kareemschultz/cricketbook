@@ -8,6 +8,8 @@ const MATCH_FORMATS = new Set(["T20", "ODI", "TEST", "CUSTOM"])
 const MATCH_STATUSES = new Set(["setup", "live", "completed", "abandoned"])
 const TOURNAMENT_FORMATS = new Set(["ROUND_ROBIN", "KNOCKOUT", "GROUP_KNOCKOUT"])
 const TOURNAMENT_STATUSES = new Set(["upcoming", "live", "completed"])
+const SPORT_TOURNAMENT_FORMATS = new Set(["ROUND_ROBIN", "KNOCKOUT"])
+const SPORT_TOURNAMENT_STATUSES = new Set(["upcoming", "live", "completed"])
 const STAT_FORMATS = new Set(["T20", "ODI", "TEST", "CUSTOM", "ALL"])
 const GAME_STATUSES = new Set(["live", "completed", "abandoned"])
 const DOMINO_SCORING_MODES = new Set(["hands", "points"])
@@ -251,6 +253,20 @@ function validateRow(
       if (row.date !== undefined && !isValidDate(row.date))
         push("date must be a valid date")
       break
+    case "dominoTournaments":
+      if (!isNonEmptyString(row.id)) push("id must be a non-empty string")
+      if (!isNonEmptyString(row.name)) push("name must be a non-empty string")
+      if (!SPORT_TOURNAMENT_FORMATS.has(row.format as string))
+        push(`format must be ROUND_ROBIN | KNOCKOUT (got: ${String(row.format)})`)
+      if (!SPORT_TOURNAMENT_STATUSES.has(row.status as string))
+        push(`status must be upcoming | live | completed (got: ${String(row.status)})`)
+      if (!Array.isArray(row.teamIds)) push("teamIds must be an array")
+      if (!Array.isArray(row.fixtures)) push("fixtures must be an array")
+      if (!isFiniteNumber(row.pointsPerWin)) push("pointsPerWin must be a number")
+      if (!isFiniteNumber(row.pointsPerAbandoned)) push("pointsPerAbandoned must be a number")
+      if (row.createdAt !== undefined && !isValidDate(row.createdAt))
+        push("createdAt must be a valid date")
+      break
 
     // ── Trump tables ──────────────────────────────────────────────────────────
     case "trumpPlayers":
@@ -272,6 +288,20 @@ function validateRow(
         push(`status must be live | completed | abandoned (got: ${String(row.status)})`)
       if (row.date !== undefined && !isValidDate(row.date))
         push("date must be a valid date")
+      break
+    case "trumpTournaments":
+      if (!isNonEmptyString(row.id)) push("id must be a non-empty string")
+      if (!isNonEmptyString(row.name)) push("name must be a non-empty string")
+      if (!SPORT_TOURNAMENT_FORMATS.has(row.format as string))
+        push(`format must be ROUND_ROBIN | KNOCKOUT (got: ${String(row.format)})`)
+      if (!SPORT_TOURNAMENT_STATUSES.has(row.status as string))
+        push(`status must be upcoming | live | completed (got: ${String(row.status)})`)
+      if (!Array.isArray(row.teamIds)) push("teamIds must be an array")
+      if (!Array.isArray(row.fixtures)) push("fixtures must be an array")
+      if (!isFiniteNumber(row.pointsPerWin)) push("pointsPerWin must be a number")
+      if (!isFiniteNumber(row.pointsPerAbandoned)) push("pointsPerAbandoned must be a number")
+      if (row.createdAt !== undefined && !isValidDate(row.createdAt))
+        push("createdAt must be a valid date")
       break
 
     // ── Settings table ────────────────────────────────────────────────────────
@@ -298,9 +328,9 @@ export function validateImportPayload(data: Record<string, unknown>): ImportRowE
     // FIFA
     "fifaPlayers", "fifaMatches",
     // Dominoes
-    "dominoPlayers", "dominoTeams", "dominoMatches",
+    "dominoPlayers", "dominoTeams", "dominoMatches", "dominoTournaments",
     // Trump
-    "trumpPlayers", "trumpTeams", "trumpMatches",
+    "trumpPlayers", "trumpTeams", "trumpMatches", "trumpTournaments",
     // Settings
     "settings",
   ] as const

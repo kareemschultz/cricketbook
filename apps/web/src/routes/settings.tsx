@@ -71,34 +71,14 @@ function SettingsPage() {
     return subscribeErrorLog(() => setErrorLog(getErrorLog()))
   }, [])
 
-  useEffect(() => {
-    if (settingsRow && !localSettings) {
-      setLocalSettings(settingsRow)
-    }
-  }, [settingsRow, localSettings])
-
-  async function handleSave(patch: Partial<AppSettings>) {
-    setIsSaving(true)
-    await saveSettings(patch)
-    setIsSaving(false)
-  }
-
-  function updateSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
-    setLocalSettings((prev) => (prev ? { ...prev, [key]: value } : null))
-    handleSave({ [key]: value })
-    if (key === "theme") {
-      setTheme(value as AppSettings["theme"])
-    }
-  }
-
   // ── Export ───────────────────────────────────────────────────────────────────
 
   async function handleExport() {
     const [
       teams, players, matches, tournaments, battingStats, bowlingStats,
       fifaPlayers, fifaMatches,
-      dominoPlayers, dominoTeams, dominoMatches,
-      trumpPlayers, trumpTeams, trumpMatches,
+      dominoPlayers, dominoTeams, dominoMatches, dominoTournaments,
+      trumpPlayers, trumpTeams, trumpMatches, trumpTournaments,
       settingsRows,
     ] = await Promise.all([
       db.teams.toArray(),
@@ -112,21 +92,23 @@ function SettingsPage() {
       db.dominoPlayers.toArray(),
       db.dominoTeams.toArray(),
       db.dominoMatches.toArray(),
+      db.dominoTournaments.toArray(),
       db.trumpPlayers.toArray(),
       db.trumpTeams.toArray(),
       db.trumpMatches.toArray(),
+      db.trumpTournaments.toArray(),
       db.settings.toArray(),
     ])
 
     const tables = {
       teams, players, matches, tournaments, battingStats, bowlingStats,
       fifaPlayers, fifaMatches,
-      dominoPlayers, dominoTeams, dominoMatches,
-      trumpPlayers, trumpTeams, trumpMatches,
+      dominoPlayers, dominoTeams, dominoMatches, dominoTournaments,
+      trumpPlayers, trumpTeams, trumpMatches, trumpTournaments,
       settings: settingsRows,
     }
 
-    // Compute SHA-256 over the canonical JSON of the 15 data tables.
+    // Compute SHA-256 over the canonical JSON of the 17 data tables.
     // Metadata fields (exportedAt, schemaVersion, integrity) are excluded so
     // that re-exporting identical data always produces the same hash.
     const canonical = JSON.stringify(
@@ -143,7 +125,7 @@ function SettingsPage() {
     const payload: ExportPayload = {
       exportedAt: new Date().toISOString(),
       version: "1.0.0",
-      schemaVersion: 2,
+      schemaVersion: 3,
       integrity: { algorithm: "sha256", hash },
       ...tables,
     }
@@ -200,8 +182,8 @@ function SettingsPage() {
         const TABLES = [
           "teams", "players", "matches", "tournaments", "battingStats", "bowlingStats",
           "settings", "fifaPlayers", "fifaMatches",
-          "dominoPlayers", "dominoTeams", "dominoMatches",
-          "trumpPlayers", "trumpTeams", "trumpMatches",
+          "dominoPlayers", "dominoTeams", "dominoMatches", "dominoTournaments",
+          "trumpPlayers", "trumpTeams", "trumpMatches", "trumpTournaments",
         ] as const
         const counts = Object.fromEntries(
           TABLES.map((t) => [t, Array.isArray(data[t]) ? (data[t] as unknown[]).length : 0])
@@ -215,12 +197,12 @@ function SettingsPage() {
   function handleImportDirect(mode: ImportMode = "replace") {
     pickAndParseFile(
       async (data) => {
-        // Warn about schema version mismatch but don't block (accept v1 and v2)
+        // Warn about schema version mismatch but don't block (accept v1-v3)
         const exportedVersion = typeof data.schemaVersion === "number" ? data.schemaVersion : 1
-        if (exportedVersion > 2) {
+        if (exportedVersion > 3) {
           const proceed = window.confirm(
             `This backup was exported with schema version ${exportedVersion}. ` +
-            `Current app uses version 2. Rows may not import correctly. Continue?`
+            `Current app uses version 3. Rows may not import correctly. Continue?`
           )
           if (!proceed) return
         }
@@ -273,8 +255,8 @@ function SettingsPage() {
             [
               db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats,
               db.fifaPlayers, db.fifaMatches,
-              db.dominoPlayers, db.dominoTeams, db.dominoMatches,
-              db.trumpPlayers, db.trumpTeams, db.trumpMatches,
+              db.dominoPlayers, db.dominoTeams, db.dominoMatches, db.dominoTournaments,
+              db.trumpPlayers, db.trumpTeams, db.trumpMatches, db.trumpTournaments,
               db.settings,
             ],
             async () => {
@@ -312,9 +294,11 @@ function SettingsPage() {
               await writeTable(db.dominoPlayers, (data.dominoPlayers as unknown[]) ?? [])
               await writeTable(db.dominoTeams, (data.dominoTeams as unknown[]) ?? [])
               await writeTable(db.dominoMatches, (data.dominoMatches as unknown[]) ?? [])
+              await writeTable(db.dominoTournaments, (data.dominoTournaments as unknown[]) ?? [])
               await writeTable(db.trumpPlayers, (data.trumpPlayers as unknown[]) ?? [])
               await writeTable(db.trumpTeams, (data.trumpTeams as unknown[]) ?? [])
               await writeTable(db.trumpMatches, (data.trumpMatches as unknown[]) ?? [])
+              await writeTable(db.trumpTournaments, (data.trumpTournaments as unknown[]) ?? [])
               await writeTable(db.settings, (data.settings as unknown[]) ?? [])
             }
           )
@@ -335,8 +319,8 @@ function SettingsPage() {
       [
         db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats,
         db.fifaPlayers, db.fifaMatches,
-        db.dominoPlayers, db.dominoTeams, db.dominoMatches,
-        db.trumpPlayers, db.trumpTeams, db.trumpMatches,
+        db.dominoPlayers, db.dominoTeams, db.dominoMatches, db.dominoTournaments,
+        db.trumpPlayers, db.trumpTeams, db.trumpMatches, db.trumpTournaments,
         db.settings,
       ],
       async () => {
@@ -352,9 +336,11 @@ function SettingsPage() {
           db.dominoPlayers.clear(),
           db.dominoTeams.clear(),
           db.dominoMatches.clear(),
+          db.dominoTournaments.clear(),
           db.trumpPlayers.clear(),
           db.trumpTeams.clear(),
           db.trumpMatches.clear(),
+          db.trumpTournaments.clear(),
           db.settings.clear(),
         ])
       }
@@ -370,6 +356,23 @@ function SettingsPage() {
         <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
+  }
+
+  async function handleSave(patch: Partial<AppSettings>) {
+    setIsSaving(true)
+    await saveSettings(patch)
+    setIsSaving(false)
+  }
+
+  function updateSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
+    setLocalSettings((prev) => {
+      const nextSettings: AppSettings = { ...(prev ?? settings), [key]: value } as AppSettings
+      return nextSettings
+    })
+    void handleSave({ [key]: value })
+    if (key === "theme") {
+      setTheme(value as AppSettings["theme"])
+    }
   }
 
   const defaultRules = DEFAULT_RULES[settings.defaultFormat]

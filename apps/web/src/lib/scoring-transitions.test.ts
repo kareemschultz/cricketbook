@@ -96,6 +96,9 @@ function makeInnings(overrides: Partial<Innings> = {}): Innings {
     battingTeamId: "t1",
     bowlingTeamId: "t2",
     status: "live",
+    currentStrikerId: "bat1",
+    currentNonStrikerId: "bat2",
+    currentBowlerId: "bowl1",
     totalRuns: 0,
     totalWickets: 0,
     totalOvers: 0,
@@ -259,6 +262,17 @@ describe("applyBallToMatch", () => {
     })
     applyBallToMatch(match, 0, ball)
     expect(match.innings[0].totalWickets).toBe(0)
+  })
+
+  it("materializes a missing bowler entry when a ball is recorded", () => {
+    const match = makeMatch([makeInnings({ bowlingCard: [] })])
+    const ball = makeBall({ bowlerId: "bowl9", runs: 1, batsmanRuns: 1 })
+
+    applyBallToMatch(match, 0, ball)
+
+    expect(match.innings[0].bowlingCard).toHaveLength(1)
+    expect(match.innings[0].bowlingCard[0]?.playerId).toBe("bowl9")
+    expect(match.innings[0].bowlingCard[0]?.runs).toBe(1)
   })
 
   it("adds fall of wicket entry with correct score and overs", () => {
