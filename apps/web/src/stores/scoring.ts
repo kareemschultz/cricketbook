@@ -623,10 +623,8 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
     // ── loadMatch ───────────────────────────────────────────────────────────
 
     loadMatch: async (matchId: string) => {
-      set({ isProcessing: true })
       const match = await db.matches.get(matchId)
       if (!match) {
-        set({ isProcessing: false })
         throw new Error(`Match ${matchId} not found in DB`)
       }
 
@@ -699,7 +697,6 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
         lastOverBalls: derived.lastOverBalls,
         lastOverSummary: derived.lastOverSummary,
         oversBowledByBowler: derived.oversBowledByBowler,
-        isProcessing: false,
       })
     },
 
