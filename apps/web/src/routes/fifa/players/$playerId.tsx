@@ -68,7 +68,8 @@ function FifaPlayerProfilePage() {
     return { player, playerStats, h2h, playerMatches, playerMap, last10 }
   })
 
-  if (!data) {
+  // undefined = still loading; null = query ran but player not found
+  if (data === undefined) {
     return (
       <div className="flex items-center justify-center h-48">
         <div className="animate-spin size-6 border-2 border-primary border-t-transparent rounded-full" />
@@ -76,7 +77,7 @@ function FifaPlayerProfilePage() {
     )
   }
 
-  if (!data.player) {
+  if (data === null) {
     return (
       <div className="px-4 py-8 text-center">
         <p className="text-muted-foreground">Player not found</p>
