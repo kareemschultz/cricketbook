@@ -55,6 +55,13 @@ node apps/web/node_modules/typescript/bin/tsc --noEmit --project apps/web/tsconf
 2. **Zustand only for live scoring** (`stores/scoring.ts`) — everything else via `useLiveQuery`
 3. **Base: "/scoreflow/"** in vite.config.ts — required for GitHub Pages subdirectory
 4. **dedupe: ["react", "react-dom", "lucide-react"]** in vite resolve — needed because lucide-react is in apps/web/node_modules but also imported from packages/ui
+5. **Pure scoring transitions** (`lib/scoring-transitions.ts`) — `applyBallToMatch`, `rebuildInningsFromBallLog`, `rederiveStateFromInnings` are pure functions with no Dexie/Zustand deps. Test them without store mocking. `scoring.ts` only handles Zustand state + Dexie persistence.
+
+## Testing Structure
+- `lib/cricket-engine.test.ts` — pure engine function tests (192 tests)
+- `lib/import-validator.test.ts` — validation tests, all 15 table types (152 tests)
+- `lib/scoring-transitions.test.ts` — pure transition tests (32 tests)
+- Run: `cd apps/web && npx vitest run`
 
 ## Route Structure
 ```
@@ -172,7 +179,7 @@ loadMatch: async (id) => {
 - ✅ Stats leaderboard + player profiles
 - ✅ Records page
 - ✅ Tournament list + overview
-- ✅ History, Settings with JSON export/import (versioned schema)
+- ✅ History, Settings with JSON export/import (versioned schema, all 15 tables)
 - ✅ PWA with service worker + workbox precaching
 - ✅ iOS PWA meta tags
 - ✅ Share scorecard as image (html2canvas) + text copy
@@ -182,9 +189,14 @@ loadMatch: async (id) => {
 - ✅ `allPlayers` useLiveQuery null sentinel + `isPlayersLoading` guard in ScoringPage
 - ✅ Bowler hint text when `!currentBowler && innings.ballLog.length > 0`
 - ✅ Partnership calculation includes extras (byes, no-balls) — `getCurrentPartnership` no longer filters `!b.isExtra`
+- ✅ Import validator covers all 15 DB tables with deep MatchRules validation (17 fields)
 - ✅ Import validator rejects NaN/Infinity values and non-positive rule numbers (`isFiniteNumber` helper)
 - ✅ `getTopBowlers` query uses `where("format").equals(format)` + in-memory sort (avoids unindexed `orderBy("wickets")`)
 - ✅ Innings transition label shows ordinal e.g. "start innings 2/2"
+- ✅ Scoring UI "why disabled" helper text (match complete, innings complete, processing, missing striker/bowler)
+- ✅ `computeBowlerEntry` single-pass O(n) accumulator (replaced 8+ linear scans)
+- ✅ Store decomposed: `scoring.ts` 710→350 lines; pure functions in `lib/scoring-transitions.ts`
+- ✅ 224 passing tests across 4 test files (cricket-engine, import-validator, scoring-transitions, store)
 
 ## Verification Protocol
 
