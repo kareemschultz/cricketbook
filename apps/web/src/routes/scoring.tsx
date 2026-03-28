@@ -96,26 +96,10 @@ function ScoringPage() {
     setScoreFlash(type)
   }
 
-  // Auto-load live match from DB when store is cold (e.g. page refresh, Resume Match tap)
-  const { loadMatch } = useScoringStore()
-  useEffect(() => {
-    if (match || isProcessing) return
-    // Store is empty — try to find a live match in Dexie and load it
-    db.matches.where("status").equals("live").first().then((liveMatch) => {
-      if (liveMatch) {
-        loadMatch(liveMatch.id)
-      } else {
-        navigate({ to: "/" })
-      }
-    })
-  }, [match, isProcessing, loadMatch, navigate])
-
   if (!match) {
-    return (
-      <div className="min-h-full flex items-center justify-center">
-        <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+    // ScoringLoader guarantees match is set before rendering ScoringPage,
+    // but guard here as a safety net
+    return null
   }
 
   const innings = match.innings[currentInningsIndex]
@@ -804,16 +788,22 @@ function ScoringLoader() {
   const { match, matchId, loadMatch, isProcessing } = useScoringStore()
   const navigate = useNavigate()
 
-  // Load live match from DB if not in store
-  const liveMatch = useLiveQuery(() =>
-    db.matches.where("status").equals("live").first()
+  // Load live match from DB if not in store.
+  // Pass null as the default so we can distinguish:
+  //   null      = query still loading (Dexie not ready yet)
+  //   undefined = query done, no live match found
+  //   Match     = query done, live match found
+  const liveMatch = useLiveQuery(
+    () => db.matches.where("status").equals("live").first(),
+    [],
+    null
   )
 
   useEffect(() => {
-    if (liveMatch === undefined) return // still loading
+    if (liveMatch === null) return // still loading
 
     if (!liveMatch) {
-      // No live match — go home
+      // query resolved — no live match in DB
       navigate({ to: "/" })
       return
     }
