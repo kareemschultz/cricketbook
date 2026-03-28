@@ -785,7 +785,7 @@ function ScoringPage() {
 // ─── route ────────────────────────────────────────────────────────────────────
 
 function ScoringLoader() {
-  const { match, matchId, loadMatch, isProcessing } = useScoringStore()
+  const { match, matchId, loadMatch } = useScoringStore()
   const navigate = useNavigate()
 
   // Load live match from DB if not in store.
@@ -813,7 +813,10 @@ function ScoringLoader() {
     }
   }, [liveMatch, match, matchId, loadMatch, navigate])
 
-  if (!match || isProcessing) {
+  // Only show spinner while match hasn't loaded yet.
+  // Do NOT include isProcessing here — recordBall sets isProcessing:true briefly
+  // on every ball, which would unmount/remount ScoringPage on every tap.
+  if (!match) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
         <div className="flex flex-col items-center gap-2">
