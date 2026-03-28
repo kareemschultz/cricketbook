@@ -104,6 +104,8 @@ function SettingsPage() {
 
   const MAX_IMPORT_MB = 25
   const MAX_IMPORT_BYTES = MAX_IMPORT_MB * 1024 * 1024
+  const MAX_IMPORT_RECORDS_PER_TABLE = 10000
+  const MAX_IMPORT_TOTAL_RECORDS = 50000
 
   function isArrayOfObjects(v: unknown): v is Record<string, unknown>[] {
     return Array.isArray(v) && v.every((x) => typeof x === "object" && x !== null && !Array.isArray(x))
@@ -135,11 +137,48 @@ function SettingsPage() {
 
         // Validate each table's data is an array of objects before writing
         const tables = ["teams", "players", "matches", "tournaments", "battingStats", "bowlingStats"] as const
+        const tableCounts: Record<typeof tables[number], number> = {
+          teams: 0,
+          players: 0,
+          matches: 0,
+          tournaments: 0,
+          battingStats: 0,
+          bowlingStats: 0,
+        }
+
         for (const table of tables) {
           if (data[table] !== undefined && !isArrayOfObjects(data[table])) {
             alert(`Import failed: "${table}" must be an array of objects.`)
             return
           }
+
+          if (isArrayOfObjects(data[table])) {
+            tableCounts[table] = data[table].length
+            if (tableCounts[table] > MAX_IMPORT_RECORDS_PER_TABLE) {
+              alert(
+                `Import failed: "${table}" has ${tableCounts[table]} records. Maximum allowed is ${MAX_IMPORT_RECORDS_PER_TABLE}.`
+              )
+              return
+            }
+          }
+        }
+
+        const totalRecords = Object.values(tableCounts).reduce((sum, count) => sum + count, 0)
+        if (totalRecords > MAX_IMPORT_TOTAL_RECORDS) {
+          alert(
+            `Import failed: file contains ${totalRecords} total records. Maximum allowed is ${MAX_IMPORT_TOTAL_RECORDS}.`
+          )
+          return
+        }
+
+        const summaryLines = tables
+          .map((table) => `${table}: ${tableCounts[table]}`)
+          .join("\n")
+        const confirmed = window.confirm(
+          `Import ${totalRecords} records?\n\n${summaryLines}\n\nThis merges into existing local data.`
+        )
+        if (!confirmed) {
+          return
         }
 
         await db.transaction(
