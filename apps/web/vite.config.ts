@@ -6,7 +6,7 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite"
 import { VitePWA } from "vite-plugin-pwa"
 
 export default defineConfig({
-  base: "/cricketbook/",
+  base: "/scoreflow/",
   plugins: [
     TanStackRouterVite({ target: "react", autoCodeSplitting: true }),
     react(),
@@ -22,8 +22,8 @@ export default defineConfig({
         background_color: "#1a1a2e",
         display: "standalone",
         orientation: "portrait",
-        start_url: "/cricketbook/",
-        scope: "/cricketbook/",
+        start_url: "/scoreflow/",
+        scope: "/scoreflow/",
         icons: [
           { src: "icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
           { src: "icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },

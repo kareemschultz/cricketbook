@@ -1,11 +1,11 @@
 # ScoreFlow — CLAUDE.md
 
 ## Project Overview
-ScoreFlow (formerly CricketBook) is a **mobile-first live scoring PWA** — client-side only, all data in IndexedDB via Dexie.js. No backend. Deployed to GitHub Pages at `https://kareemschultz.github.io/cricketbook/`.
+ScoreFlow (formerly CricketBook) is a **mobile-first live scoring PWA** — client-side only, all data in IndexedDB via Dexie.js. No backend. Deployed to GitHub Pages at `https://kareemschultz.github.io/scoreflow/`.
 
 ## Monorepo Structure
 ```
-cricketbook/
+scoreflow/
 ├── apps/web/          — Vite + React 19 SPA (main app)
 ├── packages/ui/       — @workspace/ui shadcn/Maia component library
 └── .github/workflows/deploy.yml  — GitHub Actions → GitHub Pages
@@ -45,7 +45,7 @@ node apps/web/node_modules/typescript/bin/tsc --noEmit --project apps/web/tsconf
 ## Key Architecture Decisions
 1. **Event sourcing**: `ballLog` is source of truth; all stats are derived
 2. **Zustand only for live scoring** (`stores/scoring.ts`) — everything else via `useLiveQuery`
-3. **Base: "/cricketbook/"** in vite.config.ts — required for GitHub Pages subdirectory
+3. **Base: "/scoreflow/"** in vite.config.ts — required for GitHub Pages subdirectory
 4. **dedupe: ["react", "react-dom", "lucide-react"]** in vite resolve — needed because lucide-react is in apps/web/node_modules but also imported from packages/ui
 
 ## Route Structure

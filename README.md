@@ -2,7 +2,7 @@
 
 A mobile-first live scoring PWA for tracking matches, stats, tournaments, and more — plus a FIFA match tracker for your squad. All data stays on your device via IndexedDB. No backend, no account required.
 
-**Live:** https://kareemschultz.github.io/cricketbook/
+**Live:** https://kareemschultz.github.io/scoreflow/
 
 ---
 
@@ -122,7 +122,7 @@ node ../../node_modules/.bun/vite@*/node_modules/vite/bin/vite.js build
 - **Event sourcing**: `ballLog` is the source of truth — all stats are derived from ball events
 - **Zustand** is only used for the live scoring session (`stores/scoring.ts`) — everything else reads directly from Dexie via `useLiveQuery`
 - **No backend** — all data lives in the browser's IndexedDB. Use Settings → Export to back up your data as JSON.
-- **Base path**: `/cricketbook/` — required for GitHub Pages subdirectory deployment
+- **Base path**: `/scoreflow/` — required for GitHub Pages subdirectory deployment
 
 ### Key data types
 
@@ -172,7 +172,7 @@ All charts are SVG-based, fill their container width via `ResizeObserver`, and s
 
 The app auto-deploys to GitHub Pages on every push to `main` via `.github/workflows/deploy.yml`.
 
-The Vite config sets `base: '/cricketbook/'` for the subdirectory path. The service worker precaches all assets for offline use.
+The Vite config sets `base path: `/scoreflow/`
 
 ---
 
