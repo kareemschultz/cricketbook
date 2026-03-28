@@ -339,6 +339,6 @@ function TrumpTeamsPage() {
   )
 }
 
-export const Route = createFileRoute("/trump/teams/")({ 
+export const Route = createFileRoute("/trump/teams/")({
   component: TrumpTeamsPage,
 })
