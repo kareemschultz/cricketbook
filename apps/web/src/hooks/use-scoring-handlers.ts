@@ -7,6 +7,7 @@ import {
   buildDismissalText,
 } from "@/lib/cricket-engine"
 import { updatePlayerStatsFromMatch } from "@/lib/stats-calculator"
+import { logError } from "@/lib/error-log"
 import { db } from "@/db/index"
 import { WICKET_DISMISSALS } from "@/types/cricket"
 import type { Ball, DismissalType, Innings, Match, MatchRules, Player, BowlerEntry } from "@/types/cricket"
@@ -395,8 +396,8 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
 
     try {
       await updatePlayerStatsFromMatch(updated)
-    } catch {
-      // Non-fatal — stats update best-effort
+    } catch (err) {
+      logError("stats-update", err) // non-fatal; surfaced in Settings → Diagnostics
     }
 
     useScoringStore.getState().clearSession()

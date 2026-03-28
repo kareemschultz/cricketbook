@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useLiveQuery } from "dexie-react-hooks"
-import { RotateCcw } from "lucide-react"
+import { RotateCcw, ChevronRight } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { useScoringStore } from "@/stores/scoring"
@@ -30,7 +30,6 @@ import { NewBatsmanSheet } from "@/components/scoring/NewBatsmanSheet"
 import { PartnershipBar } from "@/components/scoring/PartnershipBar"
 import { RunPickerDialog } from "@/components/scoring/RunPickerDialog"
 
-import { Button } from "@workspace/ui/components/button"
 import {
   AlertDialog,
   AlertDialogContent,
@@ -236,6 +235,18 @@ function ScoringPage() {
 
   const canScore = !!onStrikeBatsmanId && !!currentBowlerId && !isProcessing
 
+  // ── Next required action (persistent strip) ───────────────────────────────
+  type NextActionType = { kind: "batsman"; label: string } | { kind: "bowler"; label: string } | null
+  const nextAction: NextActionType = (() => {
+    if (!onStrikeBatsmanId)
+      return { kind: "batsman" as const, label: innings.battingCard.length === 0 ? "Select opening batsman" : "Select new batsman" }
+    if (!offStrikeBatsmanId)
+      return { kind: "batsman" as const, label: innings.battingCard.length <= 1 ? "Select non-striker" : "Select new batsman" }
+    if (!currentBowlerId)
+      return { kind: "bowler" as const, label: innings.ballLog.length === 0 ? "Select opening bowler" : "Select bowler for next over" }
+    return null
+  })()
+
   // ── Result text for match end dialog ──────────────────────────────────────
   const inningsEndMsg = `${battingTeamName} scored ${innings.totalRuns}/${innings.totalWickets} in ${formatOvers(innings.totalLegalDeliveries, rules.ballsPerOver)} overs.`
 
@@ -374,19 +385,41 @@ function ScoringPage() {
       )}
 
       {/* ── Bowler card ── */}
-      {currentBowler ? (
-        <BowlerCard bowler={currentBowler} />
-      ) : !currentBowlerId ? (
-        <div className="px-3 py-1.5 border-b border-border/50 text-xs text-muted-foreground italic bg-muted/10">
-          Tap "New Over" to select a bowler
-        </div>
-      ) : null}
+      {currentBowler && <BowlerCard bowler={currentBowler} />}
 
       {/* ── Over display ── */}
       <OverDisplay balls={overBalls} lastOverSummary={lastOverSummary} />
 
       {/* ── Free hit banner ── */}
       {isFreeHit && <FreeHitBanner />}
+
+      {/* ── Next required action strip ── */}
+      <AnimatePresence mode="wait">
+        {nextAction && (
+          <motion.button
+            key={nextAction.kind + nextAction.label}
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => {
+              haptic()
+              nextAction.kind === "batsman"
+                ? setShowNewBatsmanSheet(true)
+                : setShowNewBowlerSheet(true)
+            }}
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold border-y transition-colors",
+              nextAction.kind === "batsman"
+                ? "bg-primary/10 border-primary/25 text-primary"
+                : "bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400"
+            )}
+          >
+            <span>{nextAction.label}</span>
+            <ChevronRight className="size-4 opacity-70" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* ── Scoring buttons ── */}
       <div className="flex-1 flex flex-col justify-end px-2 pb-2 gap-1.5 pt-1.5">
@@ -531,16 +564,6 @@ function ScoringPage() {
           </button>
         </div>
 
-        {/* If no bowler set and over hasn't started, show pick bowler CTA */}
-        {!currentBowlerId && (
-          <Button
-            variant="outline"
-            className="w-full h-10 border-dashed border-primary/50 text-primary text-sm"
-            onClick={() => setShowNewBowlerSheet(true)}
-          >
-            Pick Bowler to Start Over
-          </Button>
-        )}
       </div>
 
       {/* ── Dialogs & Sheets ── */}

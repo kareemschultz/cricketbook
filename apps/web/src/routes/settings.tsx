@@ -1,10 +1,11 @@
 import { motion } from "framer-motion"
 import { createFileRoute } from "@tanstack/react-router"
 import { useLiveQuery } from "dexie-react-hooks"
-import { useState, useEffect } from "react"
-import { Settings, Download, Upload, Trash2, Info, Palette, Sliders, Database } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Settings, Download, Upload, Trash2, Info, Palette, Sliders, Database, AlertTriangle, CheckCircle2, FlaskConical } from "lucide-react"
 import { db, getSettings, saveSettings } from "@/db/index"
 import { validateImportPayload, formatValidationErrors } from "@/lib/import-validator"
+import { getErrorLog, clearErrorLog, subscribeErrorLog, type ErrorEntry } from "@/lib/error-log"
 import type { AppSettings, CricketFormat } from "@/types/cricket"
 import { DEFAULT_RULES } from "@/types/cricket"
 import { useTheme } from "@/components/theme-provider"
@@ -49,6 +50,21 @@ function SettingsPage() {
   const [localSettings, setLocalSettings] = useState<AppSettings | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [clearConfirm, setClearConfirm] = useState(false)
+
+  // ── Dry-run state ─────────────────────────────────────────────────────────
+  interface DryRunResult {
+    valid: boolean
+    counts: Record<string, number>
+    errors: ReturnType<typeof validateImportPayload>
+  }
+  const [dryRunResult, setDryRunResult] = useState<DryRunResult | null>(null)
+
+  // ── Error log state (reactive via subscription) ───────────────────────────
+  const [errorLog, setErrorLog] = useState<ErrorEntry[]>(() => getErrorLog())
+
+  useEffect(() => {
+    return subscribeErrorLog(() => setErrorLog(getErrorLog()))
+  }, [])
 
   useEffect(() => {
     if (settingsRow && !localSettings) {
@@ -105,35 +121,57 @@ function SettingsPage() {
     URL.revokeObjectURL(url)
   }
 
-  // ── Import ───────────────────────────────────────────────────────────────────
+  // ── Import / dry-run ─────────────────────────────────────────────────────────
 
   const MAX_IMPORT_MB = 25
   const MAX_IMPORT_BYTES = MAX_IMPORT_MB * 1024 * 1024
 
-  function handleImport() {
+  // Shared file-picker + parse helper
+  const pickAndParseFile = useCallback((
+    onResult: (data: Record<string, unknown>) => void,
+    onError: (msg: string) => void
+  ) => {
     const input = document.createElement("input")
     input.type = "file"
     input.accept = ".json,application/json"
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
-
       if (file.size > MAX_IMPORT_BYTES) {
-        alert(`File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed is ${MAX_IMPORT_MB} MB.`)
+        onError(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max: ${MAX_IMPORT_MB} MB.`)
         return
       }
-
       try {
-        const text = await file.text()
-        const raw: unknown = JSON.parse(text)
-
+        const raw: unknown = JSON.parse(await file.text())
         if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-          alert("Import failed: file must contain a JSON object, not an array or primitive.")
+          onError("File must contain a JSON object, not an array or primitive.")
           return
         }
+        onResult(raw as Record<string, unknown>)
+      } catch {
+        onError("Invalid JSON — could not parse file.")
+      }
+    }
+    input.click()
+  }, [MAX_IMPORT_BYTES])
 
-        const data = raw as Record<string, unknown>
+  function handleDryRun() {
+    pickAndParseFile(
+      (data) => {
+        const errors = validateImportPayload(data)
+        const TABLES = ["teams", "players", "matches", "tournaments", "battingStats", "bowlingStats"] as const
+        const counts = Object.fromEntries(
+          TABLES.map((t) => [t, Array.isArray(data[t]) ? (data[t] as unknown[]).length : 0])
+        )
+        setDryRunResult({ valid: errors.length === 0, counts, errors })
+      },
+      (msg) => setDryRunResult({ valid: false, counts: {}, errors: [{ table: "file", row: -1, issue: msg }] })
+    )
+  }
 
+  function handleImport() {
+    pickAndParseFile(
+      async (data) => {
         // Validate each table's data is an array of objects before writing
         const tables = ["teams", "players", "matches", "tournaments", "battingStats", "bowlingStats"] as const
         for (const table of tables) {
@@ -150,27 +188,29 @@ function SettingsPage() {
           return
         }
 
-        await db.transaction(
-          "rw",
-          [db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats],
-          async () => {
-            if (isArrayOfObjects(data.teams) && data.teams.length) await db.teams.bulkPut(data.teams as never)
-            if (isArrayOfObjects(data.players) && data.players.length) await db.players.bulkPut(data.players as never)
-            if (isArrayOfObjects(data.matches) && data.matches.length) await db.matches.bulkPut(data.matches as never)
-            if (isArrayOfObjects(data.tournaments) && data.tournaments.length)
-              await db.tournaments.bulkPut(data.tournaments as never)
-            if (isArrayOfObjects(data.battingStats) && data.battingStats.length)
-              await db.battingStats.bulkPut(data.battingStats as never)
-            if (isArrayOfObjects(data.bowlingStats) && data.bowlingStats.length)
-              await db.bowlingStats.bulkPut(data.bowlingStats as never)
-          }
-        )
-        alert("Import successful!")
-      } catch {
-        alert("Import failed. Please check the file format.")
-      }
-    }
-    input.click()
+        try {
+          await db.transaction(
+            "rw",
+            [db.teams, db.players, db.matches, db.tournaments, db.battingStats, db.bowlingStats],
+            async () => {
+              if (isArrayOfObjects(data.teams) && data.teams.length) await db.teams.bulkPut(data.teams as never)
+              if (isArrayOfObjects(data.players) && data.players.length) await db.players.bulkPut(data.players as never)
+              if (isArrayOfObjects(data.matches) && data.matches.length) await db.matches.bulkPut(data.matches as never)
+              if (isArrayOfObjects(data.tournaments) && data.tournaments.length)
+                await db.tournaments.bulkPut(data.tournaments as never)
+              if (isArrayOfObjects(data.battingStats) && data.battingStats.length)
+                await db.battingStats.bulkPut(data.battingStats as never)
+              if (isArrayOfObjects(data.bowlingStats) && data.bowlingStats.length)
+                await db.bowlingStats.bulkPut(data.bowlingStats as never)
+            }
+          )
+          alert("Import successful!")
+        } catch {
+          alert("Import failed. Please check the file format.")
+        }
+      },
+      (msg) => alert(`Import failed: ${msg}`)
+    )
   }
 
   // ── Clear all data ────────────────────────────────────────────────────────────
@@ -440,14 +480,24 @@ function SettingsPage() {
               <Download className="size-4" />
               Export data as JSON
             </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2"
-              onClick={handleImport}
-            >
-              <Upload className="size-4" />
-              Import from JSON
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                className="justify-start gap-1.5 text-sm"
+                onClick={handleImport}
+              >
+                <Upload className="size-4" />
+                Import
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start gap-1.5 text-sm text-muted-foreground"
+                onClick={handleDryRun}
+              >
+                <FlaskConical className="size-4" />
+                Validate file
+              </Button>
+            </div>
 
             <Separator className="my-2" />
 
@@ -485,6 +535,48 @@ function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Diagnostics */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="size-4 text-primary" />
+              <CardTitle className="text-sm">Diagnostics</CardTitle>
+              {errorLog.length > 0 && (
+                <Badge variant="outline" className="ml-auto text-[10px] border-destructive/40 text-destructive bg-destructive/10">
+                  {errorLog.length}
+                </Badge>
+              )}
+            </div>
+            <CardDescription className="text-xs">
+              Non-fatal errors recorded this session
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {errorLog.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No errors recorded this session.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {errorLog.map((e, i) => (
+                  <div key={i} className="text-xs p-2 rounded-lg bg-destructive/8 border border-destructive/20">
+                    <span className="text-muted-foreground">{e.timestamp.slice(11, 19)}</span>
+                    {" · "}
+                    <span className="font-semibold text-destructive">{e.context}</span>
+                    <p className="mt-0.5 text-foreground/80 break-all">{e.message}</p>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-1 text-xs"
+                  onClick={() => clearErrorLog()}
+                >
+                  Clear log
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* About */}
         <Card>
           <CardHeader className="pb-3">
@@ -515,6 +607,60 @@ function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dry-run result dialog */}
+      <AlertDialog open={!!dryRunResult} onOpenChange={(open) => !open && setDryRunResult(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {dryRunResult?.valid
+                ? <><CheckCircle2 className="size-5 text-emerald-500" /> File is valid</>
+                : <><AlertTriangle className="size-5 text-destructive" /> Validation failed</>
+              }
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="block space-y-2 text-left">
+                {dryRunResult?.valid ? (
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Ready to import:</p>
+                    {Object.entries(dryRunResult.counts)
+                      .filter(([, n]) => n > 0)
+                      .map(([table, count]) => (
+                        <div key={table} className="flex justify-between text-xs px-2 py-1 rounded bg-muted/50">
+                          <span className="capitalize">{table}</span>
+                          <span className="font-semibold">{count} row{count !== 1 ? "s" : ""}</span>
+                        </div>
+                      ))
+                    }
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">
+                      {dryRunResult?.errors.length ?? 0} error(s) — no data was written:
+                    </p>
+                    {dryRunResult?.errors.slice(0, 8).map((e, i) => (
+                      <p key={i} className="text-xs text-destructive break-all">
+                        • {e.table}[{e.row}]: {e.issue}
+                      </p>
+                    ))}
+                    {(dryRunResult?.errors.length ?? 0) > 8 && (
+                      <p className="text-xs text-muted-foreground">…and {(dryRunResult?.errors.length ?? 0) - 8} more.</p>
+                    )}
+                  </div>
+                )}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDryRunResult(null)}>Close</AlertDialogCancel>
+            {dryRunResult?.valid && (
+              <AlertDialogAction onClick={() => { setDryRunResult(null); handleImport() }}>
+                Import now
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
