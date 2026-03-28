@@ -59,6 +59,7 @@ function AddTeamsDialog({
 }) {
   const [selected, setSelected] = useState<string[]>(tournament.teamIds)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function toggle(id: string) {
     setSelected((prev) =>
@@ -68,9 +69,15 @@ function AddTeamsDialog({
 
   async function handleSave() {
     setSaving(true)
-    await db.tournaments.update(tournament.id, { teamIds: selected })
-    setSaving(false)
-    onClose()
+    setError(null)
+    try {
+      await db.tournaments.update(tournament.id, { teamIds: selected })
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save teams. Please try again.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -99,6 +106,7 @@ function AddTeamsDialog({
             ))
           )}
         </div>
+        {error && <p className="text-xs text-destructive px-1">{error}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving || allTeams.length === 0}>
@@ -118,14 +126,18 @@ function TournamentDetailPage() {
   const [showAddTeams, setShowAddTeams] = useState(false)
 
   async function handleScheduledDateChange(fixtureId: string, dateValue: string) {
-    const tournament = await db.tournaments.get(tournamentId)
-    if (!tournament) return
-    const updatedFixtures = tournament.fixtures.map((f) =>
-      f.id === fixtureId
-        ? { ...f, scheduledDate: dateValue ? new Date(dateValue) : undefined }
-        : f
-    )
-    await db.tournaments.update(tournamentId, { fixtures: updatedFixtures })
+    try {
+      const tournament = await db.tournaments.get(tournamentId)
+      if (!tournament) return
+      const updatedFixtures = tournament.fixtures.map((f) =>
+        f.id === fixtureId
+          ? { ...f, scheduledDate: dateValue ? new Date(dateValue) : undefined }
+          : f
+      )
+      await db.tournaments.update(tournamentId, { fixtures: updatedFixtures })
+    } catch {
+      // Background date update — live query will reflect actual state
+    }
   }
 
   const tournament = useLiveQuery(() => db.tournaments.get(tournamentId), [tournamentId])

@@ -106,28 +106,35 @@ function NewTournamentDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [tournamentFormat, setTournamentFormat] = useState<TournamentFormat>("ROUND_ROBIN")
   const [matchFormat, setMatchFormat] = useState<CricketFormat>("T20")
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleCreate() {
     if (!name.trim()) return
     setSaving(true)
-    const tournament: Tournament = {
-      id: nanoid(),
-      name: name.trim(),
-      format: tournamentFormat,
-      matchFormat,
-      rules: DEFAULT_RULES[matchFormat],
-      teamIds: [],
-      fixtures: [],
-      status: "upcoming",
-      pointsPerWin: 2,
-      pointsPerTie: 1,
-      pointsPerAbandoned: 1,
-      createdAt: new Date(),
+    setError(null)
+    try {
+      const tournament: Tournament = {
+        id: nanoid(),
+        name: name.trim(),
+        format: tournamentFormat,
+        matchFormat,
+        rules: DEFAULT_RULES[matchFormat],
+        teamIds: [],
+        fixtures: [],
+        status: "upcoming",
+        pointsPerWin: 2,
+        pointsPerTie: 1,
+        pointsPerAbandoned: 1,
+        createdAt: new Date(),
+      }
+      await db.tournaments.add(tournament)
+      setName("")
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create tournament. Please try again.")
+    } finally {
+      setSaving(false)
     }
-    await db.tournaments.add(tournament)
-    setSaving(false)
-    setName("")
-    onClose()
   }
 
   return (
@@ -146,6 +153,7 @@ function NewTournamentDialog({ open, onClose }: { open: boolean; onClose: () => 
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               autoFocus
             />
+            {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Tournament format</Label>
