@@ -65,42 +65,63 @@ node apps/web/node_modules/typescript/bin/tsc --noEmit --project apps/web/tsconf
 /settings                 — Settings + data export/import
 ```
 
-## Known Bugs (Found via E2E Testing — 2026-03-27)
+## Critical Scoring Store Pattern
+
+**All post-`await` state reads in `use-scoring-handlers.ts` MUST use `useScoringStore.getState()`**, not `ctx.*` closure values. The `ctx` object is captured at render time and will be stale after any `await recordBall()` call.
+
+Correct pattern (used in `checkPostBall`, `handleWicketConfirm`, `handleEndMatch`):
+```ts
+const latestState = useScoringStore.getState()
+const latestMatch = latestState.match
+const latestIdx = latestState.currentInningsIndex
+const latestInnings = latestMatch?.innings[latestIdx]
+```
+
+**`isLastInnings` must always use rules, never array length:**
+```ts
+const totalInnings = (latestMatch.rules.inningsPerSide ?? 1) * 2
+const isLastInnings = latestIdx >= totalInnings - 1
+// NOT: match.innings.length - 1  ← wrong when first innings ends
+```
+
+## Known Bugs
 
 ### Bug 1: NewBatsmanSheet may not open after wicket [MEDIUM]
 - **Symptom**: After recording a wicket, the bottom sheet to select next batsman sometimes doesn't visually appear
-- **Location**: `apps/web/src/routes/scoring.tsx` line 394-396, `components/scoring/NewBatsmanSheet.tsx`
-- **Root cause**: Possible: `availableBatsmen` is empty if `allPlayers` useLiveQuery hasn't loaded; OR Base UI Sheet portal timing
-- **Fix approach**: Add `onOpenChange` to Sheet for controlled mode; ensure `allPlayers` is loaded before showing sheet
+- **Location**: `apps/web/src/routes/scoring.tsx`, `components/scoring/NewBatsmanSheet.tsx`
+- **Root cause**: `availableBatsmen` may be empty if `allPlayers` useLiveQuery hasn't loaded; OR Base UI Sheet portal timing
+- **Fix approach**: Ensure `allPlayers` is loaded before showing sheet
 
 ### Bug 2: Bottom nav overlaps wizard "Next" buttons [LOW]
-- **Symptom**: In new-match.tsx wizard, bottom action buttons are partially obscured by sticky bottom nav
-- **Fix**: Add `pb-20` or `mb-16` to wizard step containers to clear nav bar
+- **Symptom**: In new-match.tsx wizard, bottom action buttons partially obscured by sticky bottom nav
+- **Fix**: Add `pb-20` or `mb-16` to wizard step containers
 
 ### Bug 3: "Tap New Over to select a bowler" hint persists when bowler IS set [LOW]
-- **Location**: `apps/web/src/routes/scoring.tsx` line 690
-- **Fix**: The BowlerCard fallback text shows when `!currentBowler` but the hint text is stale
+- **Location**: `apps/web/src/routes/scoring.tsx` BowlerCard fallback text
+- **Fix**: Guard hint text on `!currentBowler && innings.ballLog.length > 0`
 
 ## Completed Features
-All phases from the implementation plan are built:
 - ✅ Cricket engine (pure functions, `lib/cricket-engine.ts`)
-- ✅ Zustand scoring store with undo, free hit, over management
-- ✅ Full scoring UI (run buttons, extras, wicket dialog, new batsman/bowler sheets)
+- ✅ Zustand scoring store with undo, free hit, over management, `lastOverBalls`, `undoNBalls`
+- ✅ Full scoring UI (run buttons, extras, wicket dialog, new batsman/bowler sheets, multi-undo)
 - ✅ Match setup wizard (5 steps: teams, format/rules, toss, playing XI, openers)
 - ✅ Teams + player CRUD
-- ✅ Scorecard with batting/bowling cards, FOW, partnerships
-- ✅ SVG charts: Manhattan, Worm, RunRate, WagonWheel
+- ✅ Scorecard with batting/bowling cards, FOW, partnerships, `MatchSummaryCard`
+- ✅ SVG charts: Manhattan (dual-innings), Worm (dual-innings), RunRate, WagonWheel
+- ✅ Scorecard inline collapsible chart section (both innings side-by-side)
+- ✅ **InningsBreakOverlay**: animated full-screen innings transition with score + target
+- ✅ **MatchResultOverlay**: animated full-screen celebration with confetti + trophy
 - ✅ Stats leaderboard + player profiles
 - ✅ Records page
 - ✅ Tournament list + overview
-- ✅ History, Settings with JSON export/import
+- ✅ History, Settings with JSON export/import (versioned schema)
 - ✅ PWA with service worker + workbox precaching
-- ✅ iOS PWA meta tags (apple-mobile-web-app-capable, status-bar-style, touch-icon)
+- ✅ iOS PWA meta tags
+- ✅ Share scorecard as image (html2canvas) + text copy
 
 ## Pending Enhancements
-- [ ] Framer Motion animations (page transitions, score counter, boundary flash)
+- [ ] Framer Motion page transitions + score counter animation
 - [ ] Demo/mock match data seed for first-time users
 - [ ] PartnershipBar and RunRateGraph improvements
-- [ ] Share scorecard as image (html2canvas integration)
 - [ ] Tournament fixture scheduling
 - [ ] Player form chart on stats/$playerId
