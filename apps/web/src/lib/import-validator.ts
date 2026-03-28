@@ -1,7 +1,8 @@
 // ─── Import payload row-level validation ─────────────────────────────────────
 //
 // Validates a JSON backup payload before any DB writes. Each table has required
-// field checks, non-empty string checks, and enum membership checks.
+// field checks, non-empty string checks, enum membership checks, and
+// structural validation for nested objects (innings, rules, dates).
 
 const MATCH_FORMATS = new Set(["T20", "ODI", "TEST", "CUSTOM"])
 const MATCH_STATUSES = new Set(["setup", "live", "completed", "abandoned"])
@@ -19,6 +20,48 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0
 }
 
+/** Check if a value looks like a valid date (ISO string, Date object, or parseable string) */
+function isValidDate(v: unknown): boolean {
+  if (v === undefined || v === null) return false
+  if (typeof v === "string") return !isNaN(Date.parse(v))
+  if (typeof v === "number") return !isNaN(v) && isFinite(v)
+  if (v instanceof Date) return !isNaN(v.getTime())
+  return false
+}
+
+/** Validate a match rules object has the minimum required fields */
+function validateMatchRules(
+  rules: Record<string, unknown>,
+  push: (issue: string) => void
+): void {
+  if (typeof rules.oversPerInnings !== "number" && rules.oversPerInnings !== null)
+    push("rules.oversPerInnings must be a number or null")
+  if (typeof rules.ballsPerOver !== "number")
+    push("rules.ballsPerOver must be a number")
+  if (typeof rules.maxWickets !== "number")
+    push("rules.maxWickets must be a number")
+}
+
+/** Validate each innings entry in a match */
+function validateInnings(
+  innings: unknown[],
+  push: (issue: string) => void
+): void {
+  for (let i = 0; i < innings.length; i++) {
+    const inn = innings[i]
+    if (typeof inn !== "object" || inn === null || Array.isArray(inn)) {
+      push(`innings[${i}] must be an object`)
+      continue
+    }
+    const r = inn as Record<string, unknown>
+    if (!Array.isArray(r.ballLog)) push(`innings[${i}].ballLog must be an array`)
+    if (!Array.isArray(r.battingCard)) push(`innings[${i}].battingCard must be an array`)
+    if (!Array.isArray(r.bowlingCard)) push(`innings[${i}].bowlingCard must be an array`)
+    if (typeof r.totalRuns !== "number") push(`innings[${i}].totalRuns must be a number`)
+    if (typeof r.totalWickets !== "number") push(`innings[${i}].totalWickets must be a number`)
+  }
+}
+
 function validateRow(
   table: string,
   row: Record<string, unknown>,
@@ -31,10 +74,23 @@ function validateRow(
     case "teams":
       if (!isNonEmptyString(row.id)) push("id must be a non-empty string")
       if (!isNonEmptyString(row.name)) push("name must be a non-empty string")
+      if (row.createdAt !== undefined && !isValidDate(row.createdAt))
+        push("createdAt must be a valid date")
       break
     case "players":
       if (!isNonEmptyString(row.id)) push("id must be a non-empty string")
       if (!isNonEmptyString(row.name)) push("name must be a non-empty string")
+      if (row.role !== undefined) {
+        const validRoles = new Set(["batsman", "bowler", "allrounder", "wicketkeeper"])
+        if (!validRoles.has(row.role as string))
+          push(`role must be batsman | bowler | allrounder | wicketkeeper (got: ${String(row.role)})`)
+      }
+      if (row.battingStyle !== undefined) {
+        if (row.battingStyle !== "right" && row.battingStyle !== "left")
+          push(`battingStyle must be "right" or "left" (got: ${String(row.battingStyle)})`)
+      }
+      if (row.createdAt !== undefined && !isValidDate(row.createdAt))
+        push("createdAt must be a valid date")
       break
     case "matches":
       if (!isNonEmptyString(row.id)) push("id must be a non-empty string")
@@ -44,9 +100,18 @@ function validateRow(
         push(`format must be T20 | ODI | TEST | CUSTOM (got: ${String(row.format)})`)
       if (!MATCH_STATUSES.has(row.status as string))
         push(`status must be setup | live | completed | abandoned (got: ${String(row.status)})`)
-      if (!Array.isArray(row.innings)) push("innings must be an array")
-      if (row.rules === null || typeof row.rules !== "object" || Array.isArray(row.rules))
+      if (!Array.isArray(row.innings)) {
+        push("innings must be an array")
+      } else {
+        validateInnings(row.innings, push)
+      }
+      if (row.rules === null || typeof row.rules !== "object" || Array.isArray(row.rules)) {
         push("rules must be an object")
+      } else {
+        validateMatchRules(row.rules as Record<string, unknown>, push)
+      }
+      if (row.date !== undefined && !isValidDate(row.date))
+        push("date must be a valid date")
       break
     case "tournaments":
       if (!isNonEmptyString(row.id)) push("id must be a non-empty string")
@@ -55,6 +120,10 @@ function validateRow(
         push(`format must be ROUND_ROBIN | KNOCKOUT | GROUP_KNOCKOUT (got: ${String(row.format)})`)
       if (!TOURNAMENT_STATUSES.has(row.status as string))
         push(`status must be upcoming | live | completed (got: ${String(row.status)})`)
+      if (!Array.isArray(row.fixtures))
+        push("fixtures must be an array")
+      if (row.createdAt !== undefined && !isValidDate(row.createdAt))
+        push("createdAt must be a valid date")
       break
     case "battingStats":
     case "bowlingStats":
@@ -62,6 +131,8 @@ function validateRow(
       if (!isNonEmptyString(row.playerId)) push("playerId must be a non-empty string")
       if (!STAT_FORMATS.has(row.format as string))
         push(`format must be T20 | ODI | TEST | CUSTOM | ALL (got: ${String(row.format)})`)
+      if (typeof row.matches !== "number") push("matches must be a number")
+      if (typeof row.innings !== "number") push("innings must be a number")
       break
   }
 }

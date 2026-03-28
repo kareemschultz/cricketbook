@@ -1,4 +1,5 @@
 import { db } from "@/db/index"
+import { logError } from "@/lib/error-log"
 import type {
   Match,
   CricketFormat,
@@ -35,7 +36,14 @@ export function computeNRR(
 function oversToBalls(overs: number): number {
   if (overs <= 0) return 0
   const wholeOvers = Math.trunc(overs)
-  const ballsPart = Math.max(0, Math.min(5, Math.round((overs - wholeOvers) * 10)))
+  const rawBalls = Math.round((overs - wholeOvers) * 10)
+  if (rawBalls < 0 || rawBalls > 5) {
+    logError(
+      "nrr-overs",
+      `Invalid overs notation ${overs}: ball digit ${rawBalls} is outside 0–5. Clamping to nearest valid value.`
+    )
+  }
+  const ballsPart = Math.max(0, Math.min(5, rawBalls))
   return wholeOvers * 6 + ballsPart
 }
 

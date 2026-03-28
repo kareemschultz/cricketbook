@@ -1479,7 +1479,7 @@ function NewMatchPage() {
       </div>
 
       {/* Footer nav */}
-      <div className="fixed bottom-[52px] left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border px-4 py-3">
+      <div className="fixed bottom-[calc(52px+env(safe-area-inset-bottom))] left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border px-4 py-3">
         <div className="flex gap-3">
           {step > 1 && (
             <Button

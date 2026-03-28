@@ -65,7 +65,7 @@ function formatInningsText(innings: Innings, teamName: string, ballsPerOver: num
 
 export function buildTextScorecard(match: Match, teamNames: Record<string, string>): string {
   const lines: string[] = []
-  lines.push("CricketBook Scorecard")
+  lines.push("ScoreFlow Scorecard")
   lines.push("═".repeat(60))
   lines.push(`${match.team1Name} vs ${match.team2Name}`)
   lines.push(`${match.format}  •  ${match.date instanceof Date ? match.date.toDateString() : new Date(match.date).toDateString()}${match.venue ? "  •  " + match.venue : ""}`)
@@ -83,7 +83,7 @@ export function buildTextScorecard(match: Match, teamNames: Record<string, strin
   }
 
   lines.push("")
-  lines.push("Scored with CricketBook")
+  lines.push("Scored with ScoreFlow")
   return lines.join("\n")
 }
 
@@ -111,7 +111,7 @@ export async function shareAsImage(elementId: string, filename = "scorecard.png"
 
     if (navigator.share && navigator.canShare({ files: [file] })) {
       await navigator.share({
-        title: "CricketBook Scorecard",
+        title: "ScoreFlow Scorecard",
         files: [file],
       })
     } else {

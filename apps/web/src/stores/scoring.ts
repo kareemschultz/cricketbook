@@ -139,13 +139,15 @@ function applyBallToMatch(
     }
   }
 
-  // 5. Fall of wicket — record when a counted wicket occurs
+  // 5. Fall of wicket — use incremental legal-ball count instead of full scan
+  // Compute running legal-delivery count from the already-maintained counter
+  const legalSoFar = (innings.totalLegalDeliveries ?? 0) + (ball.isLegal ? 1 : 0)
+
   if (isCountedWicket(ball) && ball.dismissedPlayerId) {
     const dismissed = innings.battingCard.find(
       (e) => e.playerId === ball.dismissedPlayerId
     )
     if (dismissed) {
-      const legalSoFar = innings.ballLog.filter((b) => b.isLegal).length
       const completedOvers = Math.floor(legalSoFar / rules.ballsPerOver)
       const ballsInOver = legalSoFar % rules.ballsPerOver
       const oversStr =
@@ -178,25 +180,30 @@ function applyBallToMatch(
     innings.bowlingCard[bowlerEntryIdx] = recomputed
   }
 
-  // 7. Check if over is complete
-  const overCompleted = isOverComplete(
-    innings.ballLog,
-    ball.overNumber,
-    rules
-  )
+  // 7. Check if over is complete — count legal balls in this over from tail of log
+  //    instead of scanning the entire ball log
+  let legalInCurrentOver = 0
+  for (let i = innings.ballLog.length - 1; i >= 0; i--) {
+    const b = innings.ballLog[i]
+    if (b.overNumber !== ball.overNumber) break
+    if (b.isLegal) legalInCurrentOver++
+  }
+  const overCompleted = legalInCurrentOver >= rules.ballsPerOver
 
-  // 8. Update innings over counts
+  // 8. Update innings over counts incrementally
   if (ball.isLegal) {
-    const legalBalls = innings.ballLog.filter((b) => b.isLegal).length
-    innings.totalOvers = Math.floor(legalBalls / rules.ballsPerOver)
-    innings.totalBalls = legalBalls % rules.ballsPerOver
-    innings.totalLegalDeliveries = legalBalls
+    innings.totalOvers = Math.floor(legalSoFar / rules.ballsPerOver)
+    innings.totalBalls = legalSoFar % rules.ballsPerOver
+    innings.totalLegalDeliveries = legalSoFar
   }
 
-  // Return all balls in the current over for display
-  const overBalls = innings.ballLog.filter(
-    (b) => b.overNumber === ball.overNumber
-  )
+  // Return balls in the current over — scan only the tail of the log
+  const overBalls: Ball[] = []
+  for (let i = innings.ballLog.length - 1; i >= 0; i--) {
+    if (innings.ballLog[i].overNumber !== ball.overNumber) break
+    overBalls.push(innings.ballLog[i])
+  }
+  overBalls.reverse()
 
   return { overCompleted, overBalls }
 }

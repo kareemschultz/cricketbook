@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useScoringStore } from "@/stores/scoring"
 import {
   isInPowerplay,
+  isInningsComplete,
   getRemainingBalls,
   getRequiredRunRate,
   getCurrentRunRate,
@@ -240,15 +241,25 @@ function ScoringPage() {
     }
   )
 
+  // ── Innings complete detection (for persistent recovery) ──────────────────
+  const inningsIsOver = isInningsComplete(innings, rules)
+  const isLastInnings = currentInningsIndex >= match.innings.length - 1 ||
+    (rules.inningsPerSide === 1 && currentInningsIndex >= 1)
+
   // ─────────────────────────────────────────────────────────────────────────
-  // Guard: need striker + bowler to score
+  // Guard: need striker + bowler to score, and innings must be live
   // ─────────────────────────────────────────────────────────────────────────
 
-  const canScore = !!onStrikeBatsmanId && !!currentBowlerId && !isProcessing
+  const canScore = !!onStrikeBatsmanId && !!currentBowlerId && !isProcessing && !inningsIsOver
 
   // ── Next required action (persistent strip) ───────────────────────────────
-  type NextActionType = { kind: "batsman"; label: string } | { kind: "bowler"; label: string } | null
+  type NextActionType = { kind: "batsman"; label: string } | { kind: "bowler"; label: string } | { kind: "innings"; label: string } | { kind: "match-end"; label: string } | null
   const nextAction: NextActionType = (() => {
+    // Highest priority: innings is complete — show transition action
+    if (inningsIsOver && !isLastInnings)
+      return { kind: "innings" as const, label: "Innings complete — start 2nd innings" }
+    if (inningsIsOver && isLastInnings)
+      return { kind: "match-end" as const, label: "Match complete — view results" }
     if (!onStrikeBatsmanId)
       return { kind: "batsman" as const, label: innings.battingCard.length === 0 ? "Select opening batsman" : "Select new batsman" }
     if (!offStrikeBatsmanId)
@@ -415,7 +426,11 @@ function ScoringPage() {
             transition={{ duration: 0.15 }}
             onClick={() => {
               haptic()
-              if (nextAction.kind === "batsman") {
+              if (nextAction.kind === "innings") {
+                setShowInningsEndDialog(true)
+              } else if (nextAction.kind === "match-end") {
+                setShowMatchEndDialog(true)
+              } else if (nextAction.kind === "batsman") {
                 if (allPlayers.length > 0) {
                   setShowNewBatsmanSheet(true)
                 }
@@ -425,9 +440,11 @@ function ScoringPage() {
             }}
             className={cn(
               "w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold border-y transition-colors",
-              nextAction.kind === "batsman"
-                ? "bg-primary/10 border-primary/25 text-primary"
-                : "bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400"
+              nextAction.kind === "innings" || nextAction.kind === "match-end"
+                ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
+                : nextAction.kind === "batsman"
+                  ? "bg-primary/10 border-primary/25 text-primary"
+                  : "bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400"
             )}
           >
             <span>{nextAction.label}</span>
