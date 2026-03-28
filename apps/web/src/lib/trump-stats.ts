@@ -60,9 +60,8 @@ export function computeTrumpTeamStats(
       t1.matchesWon++; t2.matchesLost++
       t1.form.push("W"); t2.form.push("L")
       if (match.team2Score === 0) t1.shutouts++
-      // Cock game: won when both were at targetScore - 1
-      if (match.team1Score === match.targetScore && match.team2Score === match.targetScore - 1) {
-        // Check if at some point both were at target-1
+      // Cock game: won when both teams reached targetScore - 1 at some point
+      {
         let running1 = 0, running2 = 0
         for (const h of match.hands) {
           running1 += h.team1Points; running2 += h.team2Points
@@ -75,11 +74,13 @@ export function computeTrumpTeamStats(
       t2.matchesWon++; t1.matchesLost++
       t2.form.push("W"); t1.form.push("L")
       if (match.team1Score === 0) t2.shutouts++
-      let running1 = 0, running2 = 0
-      for (const h of match.hands) {
-        running1 += h.team1Points; running2 += h.team2Points
-        if (running1 >= match.targetScore - 1 && running2 >= match.targetScore - 1) {
-          t2.cockGamesWon++; break
+      {
+        let running1 = 0, running2 = 0
+        for (const h of match.hands) {
+          running1 += h.team1Points; running2 += h.team2Points
+          if (running1 >= match.targetScore - 1 && running2 >= match.targetScore - 1) {
+            t2.cockGamesWon++; break
+          }
         }
       }
     }
@@ -205,6 +206,14 @@ export function computeTrumpPlayerStats(
       if (match.winnerId === myTeamId) {
         s.matchesWon++
         s.form.push("W")
+        // Cock game detection for players
+        let r1 = 0, r2 = 0
+        for (const h of match.hands) {
+          r1 += h.team1Points; r2 += h.team2Points
+          if (r1 >= match.targetScore - 1 && r2 >= match.targetScore - 1) {
+            s.cockGamesWon++; break
+          }
+        }
       } else {
         s.matchesLost++
         s.form.push("L")
