@@ -163,8 +163,8 @@ function ScoringPage() {
             innings.totalRuns
           )
         : null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [innings.ballLog, striker?.playerId, nonStriker?.playerId, innings.totalWickets, innings.totalRuns]
+    // getCurrentPartnership is a stable module-level import — safe to include
+    [innings.ballLog, striker?.playerId, nonStriker?.playerId, innings.totalWickets, innings.totalRuns, getCurrentPartnership]
   )
 
   // Available batsmen for new batsman sheet

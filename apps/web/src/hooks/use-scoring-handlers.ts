@@ -119,8 +119,11 @@ export function useScoringHandlers(ctx: ScoringContext, ui: ScoringUIActions) {
       else if (runs === 6) ui.triggerFlash("six")
       checkPostBall()
     },
+    // recordBall is a stable Zustand action. buildCoreBallInput and checkPostBall
+    // are hook-local functions — adding them would re-create the callback on every
+    // render, defeating the purpose of useCallback. Only reactive ctx values needed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ctx.onStrikeBatsmanId, ctx.currentBowlerId, ctx.isProcessing, ctx.isFreeHit, ctx.currentOver, ctx.innings]
+    [ctx.onStrikeBatsmanId, ctx.currentBowlerId, ctx.isProcessing, ctx.isFreeHit, ctx.currentOver, ctx.innings, recordBall]
   )
 
   // ── Wide handler ──────────────────────────────────────────────────────────────

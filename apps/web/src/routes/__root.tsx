@@ -317,7 +317,9 @@ function RootLayout() {
     db.matches.where("status").equals("live").first().then((liveMatch) => {
       if (liveMatch) loadMatch(liveMatch.id)
     })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: one-shot startup effect.
+  // Including match or loadMatch would re-run on every ball tap (match changes), not just on mount.
+  }, [])
 
   return (
     <div
