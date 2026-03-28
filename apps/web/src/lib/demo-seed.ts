@@ -433,3 +433,190 @@ export async function seedDemoFifaData(): Promise<boolean> {
 
   return true
 }
+
+// ─── Dominoes Demo Data ───────────────────────────────────────────────────────
+
+import type { DominoPlayer, DominoTeam, DominoMatch, DominoHand } from "@/types/dominoes"
+
+/**
+ * Seeds 4 domino players + 2 teams + 3 completed matches of demo data.
+ * Returns true if data was inserted, false if already present.
+ */
+export async function seedDemoDominoData(): Promise<boolean> {
+  const existing = await db.dominoPlayers.count()
+  if (existing > 0) return false
+
+  const p0 = uid(), p1 = uid(), p2 = uid(), p3 = uid()
+
+  const players: DominoPlayer[] = [
+    { id: p0, name: "Kareem",  colorHex: "#3b82f6", createdAt: new Date("2026-01-01") },
+    { id: p1, name: "Marcus",  colorHex: "#ef4444", createdAt: new Date("2026-01-01") },
+    { id: p2, name: "Andre",   colorHex: "#22c55e", createdAt: new Date("2026-01-01") },
+    { id: p3, name: "Rohan",   colorHex: "#a855f7", createdAt: new Date("2026-01-01") },
+  ]
+
+  const t0 = uid(), t1 = uid()
+
+  const teams: DominoTeam[] = [
+    { id: t0, name: "Blue Tiles", player1Id: p0, player2Id: p2, colorHex: "#3b82f6", createdAt: new Date("2026-01-01") },
+    { id: t1, name: "Red Kings",  player1Id: p1, player2Id: p3, colorHex: "#ef4444", createdAt: new Date("2026-01-01") },
+  ]
+
+  const mkHands = (winnerId: string, loserId: string, count: number): DominoHand[] =>
+    Array.from({ length: count }, (_, i) => ({
+      handNumber: i + 1,
+      winnerId: i % 3 === 2 ? loserId : winnerId,
+      endType: (i % 2 === 0 ? "domino" : "pose") as DominoHand["endType"],
+      points: 10 + (i * 5) % 30,
+      passes: [],
+    }))
+
+  const matches: DominoMatch[] = [
+    {
+      id: uid(),
+      date: new Date("2026-02-10"),
+      scoringMode: "hands",
+      targetHands: 6,
+      targetPoints: 100,
+      team1Id: t0,
+      team2Id: t1,
+      hands: mkHands(t0, t1, 8),
+      team1Score: 6,
+      team2Score: 2,
+      winnerId: t0,
+      status: "completed",
+    },
+    {
+      id: uid(),
+      date: new Date("2026-02-17"),
+      scoringMode: "hands",
+      targetHands: 6,
+      targetPoints: 100,
+      team1Id: t1,
+      team2Id: t0,
+      hands: mkHands(t1, t0, 9),
+      team1Score: 6,
+      team2Score: 3,
+      winnerId: t1,
+      status: "completed",
+    },
+    {
+      id: uid(),
+      date: new Date("2026-02-24"),
+      scoringMode: "hands",
+      targetHands: 6,
+      targetPoints: 100,
+      team1Id: t0,
+      team2Id: t1,
+      hands: mkHands(t0, t1, 7),
+      team1Score: 6,
+      team2Score: 1,
+      winnerId: t0,
+      status: "completed",
+    },
+  ]
+
+  await db.transaction("rw", [db.dominoPlayers, db.dominoTeams, db.dominoMatches], async () => {
+    await db.dominoPlayers.bulkAdd(players)
+    await db.dominoTeams.bulkAdd(teams)
+    await db.dominoMatches.bulkAdd(matches)
+  })
+
+  return true
+}
+
+// ─── Trump Demo Data ──────────────────────────────────────────────────────────
+
+import type { TrumpPlayer, TrumpTeam, TrumpMatch, TrumpHand } from "@/types/trump"
+
+/**
+ * Seeds 4 trump players + 2 teams + 3 completed matches of demo data.
+ * Returns true if data was inserted, false if already present.
+ */
+export async function seedDemoTrumpData(): Promise<boolean> {
+  const existing = await db.trumpPlayers.count()
+  if (existing > 0) return false
+
+  const p0 = uid(), p1 = uid(), p2 = uid(), p3 = uid()
+
+  const players: TrumpPlayer[] = [
+    { id: p0, name: "Kareem",  colorHex: "#3b82f6", createdAt: new Date("2026-01-01") },
+    { id: p1, name: "Marcus",  colorHex: "#ef4444", createdAt: new Date("2026-01-01") },
+    { id: p2, name: "Sanjay",  colorHex: "#22c55e", createdAt: new Date("2026-01-01") },
+    { id: p3, name: "Rohan",   colorHex: "#a855f7", createdAt: new Date("2026-01-01") },
+  ]
+
+  const t0 = uid(), t1 = uid()
+
+  const teams: TrumpTeam[] = [
+    { id: t0, name: "Spade Force", player1Id: p0, player2Id: p2, colorHex: "#3b82f6", createdAt: new Date("2026-01-01") },
+    { id: t1, name: "Heart Club",  player1Id: p1, player2Id: p3, colorHex: "#ef4444", createdAt: new Date("2026-01-01") },
+  ]
+
+  const suits: TrumpHand["trumpSuit"][] = ["spades", "hearts", "diamonds", "clubs"]
+
+  const mkTrumpHands = (winner: string, loser: string, count: number): TrumpHand[] =>
+    Array.from({ length: count }, (_, i) => ({
+      handNumber: i + 1,
+      trumpSuit: suits[i % 4],
+      dealerTeamId: i % 2 === 0 ? t0 : t1,
+      begged: i % 3 === 0,
+      kicked: false,
+      gaveOne: i % 3 === 0,
+      highTeamId: i % 2 === 0 ? winner : loser,
+      lowTeamId: i % 2 === 0 ? loser : winner,
+      jackTeamId: i % 3 === 0 ? winner : loser,
+      gameTeamId: winner,
+      hangJack: false,
+      hangJackTeamId: null,
+      team1Points: winner === t0 ? 3 : 1,
+      team2Points: winner === t1 ? 3 : 1,
+    }))
+
+  const matches: TrumpMatch[] = [
+    {
+      id: uid(),
+      date: new Date("2026-02-12"),
+      targetScore: 14,
+      team1Id: t0,
+      team2Id: t1,
+      hands: mkTrumpHands(t0, t1, 5),
+      team1Score: 14,
+      team2Score: 7,
+      winnerId: t0,
+      status: "completed",
+    },
+    {
+      id: uid(),
+      date: new Date("2026-02-19"),
+      targetScore: 14,
+      team1Id: t1,
+      team2Id: t0,
+      hands: mkTrumpHands(t1, t0, 6),
+      team1Score: 14,
+      team2Score: 8,
+      winnerId: t1,
+      status: "completed",
+    },
+    {
+      id: uid(),
+      date: new Date("2026-02-26"),
+      targetScore: 14,
+      team1Id: t0,
+      team2Id: t1,
+      hands: mkTrumpHands(t0, t1, 4),
+      team1Score: 14,
+      team2Score: 5,
+      winnerId: t0,
+      status: "completed",
+    },
+  ]
+
+  await db.transaction("rw", [db.trumpPlayers, db.trumpTeams, db.trumpMatches], async () => {
+    await db.trumpPlayers.bulkAdd(players)
+    await db.trumpTeams.bulkAdd(teams)
+    await db.trumpMatches.bulkAdd(matches)
+  })
+
+  return true
+}
