@@ -13,7 +13,6 @@ import {
   Trophy,
 } from "lucide-react"
 import { useRef, useState } from "react"
-import html2canvas from "html2canvas"
 import { db } from "@/db/index"
 import { formatOvers } from "@/lib/cricket-engine"
 import type { Innings, Match } from "@/types/cricket"
@@ -325,6 +324,7 @@ function ShareButtons({ match, scorecardRef }: { match: Match; scorecardRef: Rea
     if (!scorecardRef.current) return
     setSharing(true)
     try {
+      const { default: html2canvas } = await import("html2canvas")
       // Copy all CSS custom properties to the cloned document so html2canvas
       // can resolve them (it can't read vars from the original :root).
       const canvas = await html2canvas(scorecardRef.current, {

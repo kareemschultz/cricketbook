@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Audit dependencies
+        run: bun audit
+
       - name: Lint workspace
         run: bun run lint
 
