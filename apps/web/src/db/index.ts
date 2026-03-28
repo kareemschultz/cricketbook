@@ -13,7 +13,7 @@ import type { FifaPlayer, FifaMatch } from "@/types/fifa"
 
 // ─── Database ────────────────────────────────────────────────────────────────
 
-class CricketBookDB extends Dexie {
+class ScoreFlowDB extends Dexie {
   teams!: EntityTable<Team, "id">
   players!: EntityTable<Player, "id">
   matches!: EntityTable<Match, "id">
@@ -44,7 +44,7 @@ class CricketBookDB extends Dexie {
   }
 }
 
-export const db = new CricketBookDB()
+export const db = new ScoreFlowDB()
 
 // ─── Settings helpers ─────────────────────────────────────────────────────────
 

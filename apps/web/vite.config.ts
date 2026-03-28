@@ -15,9 +15,9 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "apple-touch-icon.png", "icons/*.png"],
       manifest: {
-        name: "CricketBook",
-        short_name: "CricketBook",
-        description: "Mobile-first cricket scoring & statistics app",
+        name: "ScoreFlow",
+        short_name: "ScoreFlow",
+        description: "Mobile-first live scoring & statistics app",
         theme_color: "#3b5bdb",
         background_color: "#1a1a2e",
         display: "standalone",

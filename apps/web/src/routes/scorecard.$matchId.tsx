@@ -51,7 +51,7 @@ function resultBannerClass(match: Match): string {
 
 function buildTextScorecard(match: Match): string {
   const lines: string[] = []
-  lines.push("CricketBook Scorecard")
+  lines.push("ScoreFlow Scorecard")
   lines.push("=====================")
   lines.push(`${match.team1Name} vs ${match.team2Name}`)
   lines.push(

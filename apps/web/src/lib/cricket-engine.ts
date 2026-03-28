@@ -139,22 +139,20 @@ export function canBowl(
 }
 
 export function getOversBowledByPlayer(ballLog: Ball[], ballsPerOver: number): Record<string, number> {
-  const completedBalls: Record<string, { overs: Set<number> }> = {}
+  // Single pass: count legal balls per bowler per over
+  const legalByBowlerOver: Record<string, Record<number, number>> = {}
   for (const ball of ballLog) {
     if (!ball.isLegal) continue
-    if (!completedBalls[ball.bowlerId]) {
-      completedBalls[ball.bowlerId] = { overs: new Set() }
+    if (!legalByBowlerOver[ball.bowlerId]) {
+      legalByBowlerOver[ball.bowlerId] = {}
     }
-    completedBalls[ball.bowlerId].overs.add(ball.overNumber)
+    const byOver = legalByBowlerOver[ball.bowlerId]
+    byOver[ball.overNumber] = (byOver[ball.overNumber] ?? 0) + 1
   }
+  // Count completed overs per bowler
   const result: Record<string, number> = {}
-  for (const [bowlerId] of Object.entries(completedBalls)) {
-    // Count only fully completed overs
-    const legalByOver: Record<number, number> = {}
-    for (const ball of ballLog.filter((b) => b.bowlerId === bowlerId && b.isLegal)) {
-      legalByOver[ball.overNumber] = (legalByOver[ball.overNumber] ?? 0) + 1
-    }
-    result[bowlerId] = Object.values(legalByOver).filter((c) => c >= ballsPerOver).length
+  for (const [bowlerId, byOver] of Object.entries(legalByBowlerOver)) {
+    result[bowlerId] = Object.values(byOver).filter((c) => c >= ballsPerOver).length
   }
   return result
 }
@@ -174,9 +172,11 @@ export function isInningsComplete(innings: Innings, rules: MatchRules): boolean 
     )
     if (activeBatsmen.length < 2) return true
   }
-  // Overs complete
+  // Overs complete — use pre-computed counter when available, fallback to scan
   if (rules.oversPerInnings !== null) {
-    const legalBalls = innings.ballLog.filter((b) => b.isLegal).length
+    const legalBalls = innings.totalLegalDeliveries > 0
+      ? innings.totalLegalDeliveries
+      : innings.ballLog.filter((b) => b.isLegal).length
     if (legalBalls >= rules.oversPerInnings * rules.ballsPerOver) return true
   }
   return false
@@ -194,7 +194,9 @@ export function getRemainingBalls(
 ): number | null {
   if (!rules.oversPerInnings) return null
   const totalBalls = rules.oversPerInnings * rules.ballsPerOver
-  const legalBalls = currentInnings.ballLog.filter((b) => b.isLegal).length
+  const legalBalls = currentInnings.totalLegalDeliveries > 0
+    ? currentInnings.totalLegalDeliveries
+    : currentInnings.ballLog.filter((b) => b.isLegal).length
   return Math.max(0, totalBalls - legalBalls)
 }
 

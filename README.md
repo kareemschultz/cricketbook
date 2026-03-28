@@ -1,6 +1,6 @@
-# CricketBook
+# ScoreFlow
 
-A mobile-first cricket scoring PWA for tracking matches, stats, tournaments, and more — plus a FIFA match tracker for your squad. All data stays on your device via IndexedDB. No backend, no account required.
+A mobile-first live scoring PWA for tracking matches, stats, tournaments, and more — plus a FIFA match tracker for your squad. All data stays on your device via IndexedDB. No backend, no account required.
 
 **Live:** https://kareemschultz.github.io/cricketbook/
 

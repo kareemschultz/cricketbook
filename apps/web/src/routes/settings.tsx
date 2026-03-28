@@ -120,7 +120,7 @@ function SettingsPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `cricketbook-backup-${new Date().toISOString().split("T")[0]}.json`
+    a.download = `scoreflow-backup-${new Date().toISOString().split("T")[0]}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -601,7 +601,7 @@ function SettingsPage() {
           <CardContent className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">App name</span>
-              <span className="text-sm font-medium">CricketBook</span>
+              <span className="text-sm font-medium">ScoreFlow</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Version</span>

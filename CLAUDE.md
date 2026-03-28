@@ -1,7 +1,7 @@
-# CricketBook — CLAUDE.md
+# ScoreFlow — CLAUDE.md
 
 ## Project Overview
-CricketBook is a **mobile-first cricket scoring PWA** — client-side only, all data in IndexedDB via Dexie.js. No backend. Deployed to GitHub Pages at `https://kareemschultz.github.io/cricketbook/`.
+ScoreFlow (formerly CricketBook) is a **mobile-first live scoring PWA** — client-side only, all data in IndexedDB via Dexie.js. No backend. Deployed to GitHub Pages at `https://kareemschultz.github.io/cricketbook/`.
 
 ## Monorepo Structure
 ```

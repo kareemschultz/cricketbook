@@ -9,6 +9,16 @@ function makeTeam(overrides: Record<string, unknown> = {}) {
 function makePlayer(overrides: Record<string, unknown> = {}) {
   return { id: "p1", name: "Alice", ...overrides }
 }
+function makeInnings(overrides: Record<string, unknown> = {}) {
+  return {
+    ballLog: [],
+    battingCard: [],
+    bowlingCard: [],
+    totalRuns: 0,
+    totalWickets: 0,
+    ...overrides,
+  }
+}
 function makeMatch(overrides: Record<string, unknown> = {}) {
   return {
     id: "m1",
@@ -17,18 +27,18 @@ function makeMatch(overrides: Record<string, unknown> = {}) {
     format: "T20",
     status: "completed",
     innings: [],
-    rules: {},
+    rules: { oversPerInnings: 20, ballsPerOver: 6, maxWickets: 10 },
     ...overrides,
   }
 }
 function makeTournament(overrides: Record<string, unknown> = {}) {
-  return { id: "tr1", name: "Cup 2024", format: "ROUND_ROBIN", status: "upcoming", ...overrides }
+  return { id: "tr1", name: "Cup 2024", format: "ROUND_ROBIN", status: "upcoming", fixtures: [], ...overrides }
 }
 function makeBattingStats(overrides: Record<string, unknown> = {}) {
-  return { id: "p1_T20", playerId: "p1", format: "T20", ...overrides }
+  return { id: "p1_T20", playerId: "p1", format: "T20", matches: 5, innings: 5, ...overrides }
 }
 function makeBowlingStats(overrides: Record<string, unknown> = {}) {
-  return { id: "p1_ALL", playerId: "p1", format: "ALL", ...overrides }
+  return { id: "p1_ALL", playerId: "p1", format: "ALL", matches: 3, innings: 3, ...overrides }
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -198,5 +208,96 @@ describe("validateImportPayload", () => {
     const errors = validateImportPayload({ players: [[{ id: "nested" }]] })
     expect(errors).toHaveLength(1)
     expect(errors[0].issue).toMatch(/row must be an object/)
+  })
+
+  // ── deep validation: dates ──
+
+  it("errors on team with invalid createdAt date", () => {
+    const errors = validateImportPayload({ teams: [makeTeam({ createdAt: "not-a-date" })] })
+    expect(errors.some((e) => e.issue.includes("createdAt"))).toBe(true)
+  })
+
+  it("accepts team with valid ISO date string for createdAt", () => {
+    const errors = validateImportPayload({ teams: [makeTeam({ createdAt: "2025-01-15T10:30:00Z" })] })
+    expect(errors).toHaveLength(0)
+  })
+
+  it("errors on match with invalid date", () => {
+    const errors = validateImportPayload({ matches: [makeMatch({ date: "xyz" })] })
+    expect(errors.some((e) => e.issue.includes("date"))).toBe(true)
+  })
+
+  // ── deep validation: player enums ──
+
+  it("errors on player with invalid role", () => {
+    const errors = validateImportPayload({ players: [makePlayer({ role: "captain" })] })
+    expect(errors.some((e) => e.issue.includes("role"))).toBe(true)
+  })
+
+  it("errors on player with invalid battingStyle", () => {
+    const errors = validateImportPayload({ players: [makePlayer({ battingStyle: "switch" })] })
+    expect(errors.some((e) => e.issue.includes("battingStyle"))).toBe(true)
+  })
+
+  it("accepts valid player roles and batting styles", () => {
+    for (const role of ["batsman", "bowler", "allrounder", "wicketkeeper"]) {
+      expect(validateImportPayload({ players: [makePlayer({ role })] })).toHaveLength(0)
+    }
+    for (const battingStyle of ["right", "left"]) {
+      expect(validateImportPayload({ players: [makePlayer({ battingStyle })] })).toHaveLength(0)
+    }
+  })
+
+  // ── deep validation: match rules ──
+
+  it("errors on match with invalid rules fields", () => {
+    const badRules = { oversPerInnings: "twenty", ballsPerOver: "six", maxWickets: "ten" }
+    const errors = validateImportPayload({ matches: [makeMatch({ rules: badRules })] })
+    expect(errors.some((e) => e.issue.includes("rules.oversPerInnings"))).toBe(true)
+    expect(errors.some((e) => e.issue.includes("rules.ballsPerOver"))).toBe(true)
+    expect(errors.some((e) => e.issue.includes("rules.maxWickets"))).toBe(true)
+  })
+
+  it("accepts match with rules.oversPerInnings as null (unlimited overs)", () => {
+    const rules = { oversPerInnings: null, ballsPerOver: 6, maxWickets: 10 }
+    const errors = validateImportPayload({ matches: [makeMatch({ rules })] })
+    expect(errors).toHaveLength(0)
+  })
+
+  // ── deep validation: innings structure ──
+
+  it("errors on match with malformed innings entries", () => {
+    const badInnings = [{ totalRuns: "not-a-number", totalWickets: 0, ballLog: [], battingCard: [], bowlingCard: [] }]
+    const errors = validateImportPayload({ matches: [makeMatch({ innings: badInnings })] })
+    expect(errors.some((e) => e.issue.includes("innings[0].totalRuns"))).toBe(true)
+  })
+
+  it("errors on innings missing required arrays", () => {
+    const badInnings = [{ totalRuns: 120, totalWickets: 4 }]
+    const errors = validateImportPayload({ matches: [makeMatch({ innings: badInnings })] })
+    expect(errors.some((e) => e.issue.includes("ballLog"))).toBe(true)
+    expect(errors.some((e) => e.issue.includes("battingCard"))).toBe(true)
+    expect(errors.some((e) => e.issue.includes("bowlingCard"))).toBe(true)
+  })
+
+  it("accepts match with valid innings structure", () => {
+    const innings = [makeInnings({ totalRuns: 150, totalWickets: 6 })]
+    const errors = validateImportPayload({ matches: [makeMatch({ innings })] })
+    expect(errors).toHaveLength(0)
+  })
+
+  // ── deep validation: tournament fixtures ──
+
+  it("errors on tournament missing fixtures array", () => {
+    const errors = validateImportPayload({ tournaments: [makeTournament({ fixtures: "none" })] })
+    expect(errors.some((e) => e.issue.includes("fixtures"))).toBe(true)
+  })
+
+  // ── deep validation: stats numeric fields ──
+
+  it("errors on battingStats with non-number matches/innings", () => {
+    const errors = validateImportPayload({ battingStats: [makeBattingStats({ matches: "five", innings: null })] })
+    expect(errors.some((e) => e.issue.includes("matches must be a number"))).toBe(true)
+    expect(errors.some((e) => e.issue.includes("innings must be a number"))).toBe(true)
   })
 })
