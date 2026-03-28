@@ -40,6 +40,11 @@ node ../../node_modules/.bun/vite@*/node_modules/vite/bin/vite.js --port 5173   
 
 # TypeScript check:
 node apps/web/node_modules/typescript/bin/tsc --noEmit --project apps/web/tsconfig.app.json
+
+# Full CI suite (same as GitHub Actions):
+bun audit && bun run lint && bun run typecheck
+cd apps/web && npx vitest run  # unit tests (232)
+cd apps/web && npx playwright test  # E2E (2 scenarios)
 ```
 
 ## Cricket Engine Rules
@@ -69,19 +74,32 @@ node apps/web/node_modules/typescript/bin/tsc --noEmit --project apps/web/tsconf
 
 ## Route Structure
 ```
-/                         — Home (active match card + quick stats)
-/new-match                — 5-step match setup wizard
-/scoring                  — Live scoring interface
-/scorecard/$matchId       — Full scorecard + charts
-/history                  — Match history list
-/stats                    — Leaderboard tabs
-/stats/$playerId          — Player profile
-/records                  — All-time records
-/teams                    — Team list
-/teams/$teamId            — Team roster
-/tournaments              — Tournament list
-/tournaments/$tournamentId — Tournament overview
-/settings                 — Settings + data export/import
+/                                        — Home (active match card + quick stats)
+/new-match                               — 5-step match setup wizard
+/scoring                                 — Live scoring interface
+/scorecard/$matchId                      — Full scorecard + charts
+/history                                 — Match history list
+/stats                                   — Leaderboard tabs
+/stats/$playerId                         — Player profile
+/records                                 — All-time records
+/teams                                   — Team list
+/teams/$teamId                           — Team roster
+/tournaments                             — Cricket tournament list
+/tournaments/$tournamentId               — Cricket tournament overview
+/settings                                — Settings + data export/import
+/fifa                                    — FIFA leaderboard
+/fifa/players/$playerId                  — FIFA player profile
+/fifa/matches                            — FIFA match history
+/dominoes                                — Dominoes hub
+/dominoes/matches                        — Dominoes match history (with tournament filter)
+/dominoes/matches/new                    — Record a Dominoes match
+/dominoes/tournaments                    — Dominoes tournament list
+/dominoes/tournaments/$tournamentId      — Dominoes tournament detail
+/trump                                   — Trump/All Fours hub
+/trump/matches                           — Trump match history (with tournament filter)
+/trump/matches/new                       — Record a Trump match
+/trump/tournaments                       — Trump tournament list
+/trump/tournaments/$tournamentId         — Trump tournament detail
 ```
 
 ## Critical Scoring Store Pattern
@@ -224,7 +242,7 @@ loadMatch: async (id) => {
 - ✅ `allPlayers` useLiveQuery null sentinel + `isPlayersLoading` guard in ScoringPage
 - ✅ Bowler hint text when `!currentBowler && innings.ballLog.length > 0`
 - ✅ Partnership calculation includes extras (byes, no-balls) — `getCurrentPartnership` no longer filters `!b.isExtra`
-- ✅ Import validator covers all 15 DB tables with deep MatchRules validation (17 fields)
+- ✅ Import validator covers all 17 DB tables with deep MatchRules validation (17 fields)
 - ✅ Import validator rejects NaN/Infinity values and non-positive rule numbers (`isFiniteNumber` helper)
 - ✅ `getTopBowlers` query uses `where("format").equals(format)` + in-memory sort (avoids unindexed `orderBy("wickets")`)
 - ✅ Innings transition label shows ordinal e.g. "start innings 2/2"
