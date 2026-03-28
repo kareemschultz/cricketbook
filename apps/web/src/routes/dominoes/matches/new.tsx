@@ -37,6 +37,8 @@ function NewDominoMatchPage() {
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [handPips, setHandPips] = useState(0)
+  const [dominoPlayerId, setDominoPlayerId] = useState<string | null>(null)
 
   const teamMap = new Map((teams ?? []).map((t) => [t.id, t]))
   const t1 = team1Id ? teamMap.get(team1Id) : undefined
@@ -54,10 +56,13 @@ function NewDominoMatchPage() {
         handNumber: prev.length + 1,
         winnerId,
         endType,
-        points: 0,
+        dominoedByPlayerId: endType === "domino" ? (dominoPlayerId ?? undefined) : undefined,
+        points: handPips,
         passes: [],
       },
     ])
+    setHandPips(0)
+    setDominoPlayerId(null)
   }
 
   function removeLastHand() {
@@ -234,25 +239,66 @@ function NewDominoMatchPage() {
         )}
 
         {/* Hand Recording Buttons */}
-        {team1Id && team2Id && !isMatchComplete && (
+        {team1Id && team2Id && !isMatchComplete && (() => {
+          const playerMap = new Map((players ?? []).map((p) => [p.id, p]))
+          const t1Players = t1 ? [t1.player1Id, t1.player2Id].map((id) => playerMap.get(id)).filter(Boolean) : []
+          const t2Players = t2 ? [t2.player1Id, t2.player2Id].map((id) => playerMap.get(id)).filter(Boolean) : []
+
+          return (
           <Card>
             <CardContent className="py-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hand {hands.length + 1} - Who won?</p>
+
+              {/* Pip count */}
+              <div className="flex items-center gap-3">
+                <Label className="text-xs shrink-0">Pip count</Label>
+                <div className="flex items-center gap-2">
+                  <motion.button type="button" whileTap={{ scale: 0.9 }}
+                    className="size-7 rounded-full bg-muted flex items-center justify-center disabled:opacity-40"
+                    onClick={() => setHandPips((v) => Math.max(0, v - 1))} disabled={handPips <= 0}
+                  >
+                    <Minus className="size-3" />
+                  </motion.button>
+                  <span className="text-sm font-bold tabular-nums w-8 text-center">{handPips}</span>
+                  <motion.button type="button" whileTap={{ scale: 0.9 }}
+                    className="size-7 rounded-full bg-primary flex items-center justify-center"
+                    onClick={() => setHandPips((v) => v + 1)}
+                  >
+                    <Plus className="size-3 text-primary-foreground" />
+                  </motion.button>
+                </div>
+                <span className="text-[10px] text-muted-foreground">(optional)</span>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
                   <p className="text-xs text-center font-medium">{t1?.name}</p>
-                  <Button variant="outline" className="w-full" onClick={() => addHand(team1Id!, "domino")}>
-                    Domino
-                  </Button>
+                  <div className="space-y-1">
+                    {t1Players.map((p) => (
+                      <Button key={p!.id} variant="outline" className="w-full text-xs" onClick={() => { setDominoPlayerId(p!.id); addHand(team1Id!, "domino") }}>
+                        {p!.name} domino
+                      </Button>
+                    ))}
+                    {t1Players.length === 0 && (
+                      <Button variant="outline" className="w-full" onClick={() => addHand(team1Id!, "domino")}>Domino</Button>
+                    )}
+                  </div>
                   <Button variant="outline" className="w-full" onClick={() => addHand(team1Id!, "pose")}>
                     Pose / Lock
                   </Button>
                 </div>
                 <div className="space-y-2">
                   <p className="text-xs text-center font-medium">{t2?.name}</p>
-                  <Button variant="outline" className="w-full" onClick={() => addHand(team2Id!, "domino")}>
-                    Domino
-                  </Button>
+                  <div className="space-y-1">
+                    {t2Players.map((p) => (
+                      <Button key={p!.id} variant="outline" className="w-full text-xs" onClick={() => { setDominoPlayerId(p!.id); addHand(team2Id!, "domino") }}>
+                        {p!.name} domino
+                      </Button>
+                    ))}
+                    {t2Players.length === 0 && (
+                      <Button variant="outline" className="w-full" onClick={() => addHand(team2Id!, "domino")}>Domino</Button>
+                    )}
+                  </div>
                   <Button variant="outline" className="w-full" onClick={() => addHand(team2Id!, "pose")}>
                     Pose / Lock
                   </Button>
@@ -260,7 +306,8 @@ function NewDominoMatchPage() {
               </div>
             </CardContent>
           </Card>
-        )}
+          )
+        })()}
 
         {/* Hand Log */}
         {hands.length > 0 && (
@@ -274,6 +321,7 @@ function NewDominoMatchPage() {
               </div>
               {hands.map((h) => {
                 const winnerTeam = teamMap.get(h.winnerId!)
+                const domPlayer = h.dominoedByPlayerId ? (players ?? []).find((p) => p.id === h.dominoedByPlayerId) : null
                 return (
                   <div key={h.handNumber} className="flex items-center justify-between py-1 text-xs border-b border-border/30 last:border-0">
                     <span className="text-muted-foreground">Hand {h.handNumber}</span>
@@ -281,7 +329,9 @@ function NewDominoMatchPage() {
                       <span className={cn("font-medium", h.winnerId === team1Id ? "text-emerald-500" : "text-blue-500")}>
                         {winnerTeam?.name}
                       </span>
-                      <span className="text-muted-foreground">({h.endType})</span>
+                      <span className="text-muted-foreground">
+                        ({h.endType}{domPlayer ? ` by ${domPlayer.name}` : ""}{h.points > 0 ? `, ${h.points} pts` : ""})
+                      </span>
                     </span>
                   </div>
                 )
