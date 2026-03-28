@@ -1384,7 +1384,7 @@ function NewMatchPage() {
 
       {/* Step content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="pb-32">
+        <div className="pb-40">
           <StepHeader
             title={STEP_TITLES[step - 1]}
             subtitle={STEP_SUBTITLES[step - 1]}

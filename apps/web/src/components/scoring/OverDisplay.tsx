@@ -1,9 +1,10 @@
 import { cn } from "@workspace/ui/lib/utils"
-import type { Ball } from "@/types/cricket"
+import type { Ball, BowlerEntry } from "@/types/cricket"
 
 interface OverDisplayProps {
   balls: Ball[]
   lastOverSummary: string
+  currentBowler?: BowlerEntry
 }
 
 interface BallCircleProps {
@@ -64,13 +65,13 @@ function BallCircle({ token, ball }: BallCircleProps & { ball?: Ball }) {
   )
 }
 
-export function OverDisplay({ balls, lastOverSummary }: OverDisplayProps) {
+export function OverDisplay({ balls, lastOverSummary, currentBowler }: OverDisplayProps) {
   return (
     <div className="px-3 py-2 border-b border-border/50">
       {/* Current over balls */}
       <div className="flex items-center gap-1.5 min-h-[2rem]">
         <span className="text-[10px] text-muted-foreground font-medium mr-1 shrink-0">This over:</span>
-        {balls.length === 0 ? (
+        {balls.length === 0 && !currentBowler ? (
           <span className="text-xs text-muted-foreground/60 italic">New over</span>
         ) : (
           balls.map((ball, idx) => (
