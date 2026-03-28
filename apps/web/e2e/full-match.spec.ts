@@ -110,8 +110,9 @@ test.describe("Full match flow", () => {
     await oversInput.press("Tab") // blur to commit
     await page.locator("button", { hasText: "Next" }).click()
 
-    // Step 3 — Toss: Team Alpha wins, elects to bat.
-    await page.locator("button").filter({ hasText: /^Team Alpha$/ }).first().click()
+    // Step 3 — Toss: Use manual selection section (nth(1) skips the coin-flip
+    // "calling team" button and targets the manual toss-winner button).
+    await page.locator("button").filter({ hasText: /^Team Alpha$/ }).nth(1).click()
     await page.locator("button", { hasText: "Bat" }).click()
     await page.locator("button", { hasText: "Next" }).click()
 
