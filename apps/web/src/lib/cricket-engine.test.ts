@@ -16,8 +16,17 @@ import {
   buildDismissalText,
   isTied,
   isInningsComplete,
+  computeBowlerEntry,
+  getExtraRuns,
+  getOversBowledByPlayer,
+  createBall,
+  buildResultString,
+  isInPowerplay,
+  getTarget,
+  shouldSwapStrikeEndOfOver,
 } from "./cricket-engine"
 import type { Ball, Innings, MatchRules } from "@/types/cricket"
+import type { BallInput } from "./cricket-engine"
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -604,5 +613,353 @@ describe("isInningsComplete", () => {
     const innings = makeInnings({ totalWickets: 5, ballLog: manyBalls })
     // 5 wickets and no over limit — not complete
     expect(isInningsComplete(innings, testRules)).toBe(false)
+  })
+})
+
+// ─── getTarget ────────────────────────────────────────────────────────────────
+
+describe("getTarget", () => {
+  it("returns first innings runs + 1", () => {
+    const innings = makeInnings({ totalRuns: 180 })
+    expect(getTarget(innings)).toBe(181)
+  })
+
+  it("returns 1 for a duck innings (0 runs)", () => {
+    const innings = makeInnings({ totalRuns: 0 })
+    expect(getTarget(innings)).toBe(1)
+  })
+})
+
+// ─── shouldSwapStrikeEndOfOver ────────────────────────────────────────────────
+
+describe("shouldSwapStrikeEndOfOver", () => {
+  it("always returns true", () => {
+    expect(shouldSwapStrikeEndOfOver()).toBe(true)
+  })
+})
+
+// ─── getExtraRuns ─────────────────────────────────────────────────────────────
+
+describe("getExtraRuns", () => {
+  it("returns all-zero breakdown for a normal delivery", () => {
+    const ball = makeBall({ isExtra: false, runs: 4, batsmanRuns: 4 })
+    const result = getExtraRuns(ball)
+    expect(result).toEqual({ wide: 0, noBall: 0, bye: 0, legBye: 0, penalty: 0, total: 0 })
+  })
+
+  it("maps wide correctly", () => {
+    const ball = makeBall({ isExtra: true, extraType: "wide", extraRuns: 1, runs: 1 })
+    const result = getExtraRuns(ball)
+    expect(result).toEqual({ wide: 1, noBall: 0, bye: 0, legBye: 0, penalty: 0, total: 1 })
+  })
+
+  it("maps no-ball correctly", () => {
+    const ball = makeBall({ isExtra: true, extraType: "noBall", extraRuns: 1, runs: 1 })
+    const result = getExtraRuns(ball)
+    expect(result).toEqual({ wide: 0, noBall: 1, bye: 0, legBye: 0, penalty: 0, total: 1 })
+  })
+
+  it("maps bye correctly", () => {
+    const ball = makeBall({ isExtra: true, extraType: "bye", extraRuns: 4, runs: 4 })
+    const result = getExtraRuns(ball)
+    expect(result).toEqual({ wide: 0, noBall: 0, bye: 4, legBye: 0, penalty: 0, total: 4 })
+  })
+
+  it("maps leg bye correctly", () => {
+    const ball = makeBall({ isExtra: true, extraType: "legBye", extraRuns: 2, runs: 2 })
+    const result = getExtraRuns(ball)
+    expect(result).toEqual({ wide: 0, noBall: 0, bye: 0, legBye: 2, penalty: 0, total: 2 })
+  })
+
+  it("maps penalty (batting side) correctly", () => {
+    const ball = makeBall({ isExtra: true, extraType: "penaltyBatting", extraRuns: 5, runs: 5 })
+    const result = getExtraRuns(ball)
+    expect(result).toEqual({ wide: 0, noBall: 0, bye: 0, legBye: 0, penalty: 5, total: 5 })
+  })
+
+  it("maps penalty (bowling side) correctly", () => {
+    const ball = makeBall({ isExtra: true, extraType: "penaltyBowling", extraRuns: 5, runs: 5 })
+    const result = getExtraRuns(ball)
+    expect(result).toEqual({ wide: 0, noBall: 0, bye: 0, legBye: 0, penalty: 5, total: 5 })
+  })
+})
+
+// ─── getOversBowledByPlayer ───────────────────────────────────────────────────
+
+describe("getOversBowledByPlayer", () => {
+  it("returns empty object for empty log", () => {
+    expect(getOversBowledByPlayer([], 6)).toEqual({})
+  })
+
+  it("counts one completed over for a bowler with 6 legal balls", () => {
+    const log = Array.from({ length: 6 }, (_, i) =>
+      makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, deliveryNumber: i })
+    )
+    expect(getOversBowledByPlayer(log, 6)).toEqual({ bowl1: 1 })
+  })
+
+  it("does not count a partial over (0 completed overs)", () => {
+    const log = Array.from({ length: 5 }, (_, i) =>
+      makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, deliveryNumber: i })
+    )
+    // bowl1 is present but with 0 completed overs
+    expect(getOversBowledByPlayer(log, 6)).toEqual({ bowl1: 0 })
+  })
+
+  it("counts multiple overs across two bowlers correctly", () => {
+    const bowl1Balls = Array.from({ length: 12 }, (_, i) =>
+      makeBall({ bowlerId: "bowl1", overNumber: i < 6 ? 0 : 2, isLegal: true, deliveryNumber: i })
+    )
+    const bowl2Balls = Array.from({ length: 6 }, (_, i) =>
+      makeBall({ bowlerId: "bowl2", overNumber: 1, isLegal: true, deliveryNumber: i })
+    )
+    const result = getOversBowledByPlayer([...bowl1Balls, ...bowl2Balls], 6)
+    expect(result).toEqual({ bowl1: 2, bowl2: 1 })
+  })
+
+  it("ignores illegal deliveries (wides/no-balls) when counting overs", () => {
+    // 6 legal + 2 wides = bowl1 has 1 completed over
+    const legal = Array.from({ length: 6 }, (_, i) =>
+      makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, deliveryNumber: i })
+    )
+    const wides = [
+      makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: false, extraType: "wide", deliveryNumber: 6 }),
+      makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: false, extraType: "wide", deliveryNumber: 7 }),
+    ]
+    expect(getOversBowledByPlayer([...legal, ...wides], 6)).toEqual({ bowl1: 1 })
+  })
+})
+
+// ─── isInPowerplay ─────────────────────────────────────────────────────────────
+
+describe("isInPowerplay", () => {
+  it("returns true for over 0 (inside powerplay)", () => {
+    expect(isInPowerplay(0, BASE_RULES)).toBe(true) // BASE_RULES.powerplayOvers = 6
+  })
+
+  it("returns true for over 5 (last powerplay over)", () => {
+    expect(isInPowerplay(5, BASE_RULES)).toBe(true)
+  })
+
+  it("returns false for over 6 (first non-powerplay over)", () => {
+    expect(isInPowerplay(6, BASE_RULES)).toBe(false)
+  })
+
+  it("returns false for over 10 (well outside powerplay)", () => {
+    expect(isInPowerplay(10, BASE_RULES)).toBe(false)
+  })
+
+  it("returns false when powerplay is disabled", () => {
+    const rules = { ...BASE_RULES, powerplayEnabled: false }
+    expect(isInPowerplay(0, rules)).toBe(false)
+  })
+})
+
+// ─── buildResultString ────────────────────────────────────────────────────────
+
+describe("buildResultString", () => {
+  it("won by runs (batting first wins)", () => {
+    const result = buildResultString("Team A", "Team B", true, 185, 172, 3, 0, 6)
+    expect(result).toBe("Team A won by 13 runs")
+  })
+
+  it("singular 'run' when margin is 1", () => {
+    const result = buildResultString("Team A", "Team B", true, 150, 149, 3, 0, 6)
+    expect(result).toBe("Team A won by 1 run")
+  })
+
+  it("won by wickets (chasing team wins)", () => {
+    const result = buildResultString("Team B", "Team A", false, 173, 185, 5, 12, 6)
+    expect(result).toBe("Team B won by 5 wickets (2 ov remaining)")
+  })
+
+  it("singular 'wicket' when margin is 1", () => {
+    const result = buildResultString("Team B", "Team A", false, 186, 185, 1, 0, 6)
+    expect(result).toBe("Team B won by 1 wicket")
+  })
+
+  it("no 'ov remaining' text when last ball wins", () => {
+    // remainingBalls = 0 means won off the last ball
+    const result = buildResultString("Team B", "Team A", false, 186, 185, 3, 0, 6)
+    expect(result).toBe("Team B won by 3 wickets")
+  })
+
+  it("fractional overs remaining shown correctly", () => {
+    // 7 balls remaining = 1.1 overs
+    const result = buildResultString("Team B", "Team A", false, 186, 185, 3, 7, 6)
+    expect(result).toBe("Team B won by 3 wickets (1.1 ov remaining)")
+  })
+})
+
+// ─── createBall ───────────────────────────────────────────────────────────────
+
+function makeBallInput(overrides: Partial<BallInput> = {}): BallInput {
+  return {
+    inningsIndex: 0,
+    overNumber: 0,
+    deliveryNumber: 0,
+    batsmanId: "bat1",
+    bowlerId: "bowl1",
+    runs: 0,
+    batsmanRuns: 0,
+    isExtra: false,
+    extraRuns: 0,
+    isWicket: false,
+    isFreeHit: false,
+    nextIsFreeHit: false,
+    isNoBallBatRuns: false,
+    powerplay: false,
+    rules: BASE_RULES,
+    ballLog: [],
+    ...overrides,
+  }
+}
+
+describe("createBall", () => {
+  it("normal delivery is legal", () => {
+    const ball = createBall(makeBallInput({ isExtra: false, runs: 4, batsmanRuns: 4 }))
+    expect(ball.isLegal).toBe(true)
+    expect(ball.runs).toBe(4)
+    expect(ball.batsmanRuns).toBe(4)
+  })
+
+  it("wide with wideReball=true is not legal", () => {
+    const ball = createBall(makeBallInput({
+      isExtra: true, extraType: "wide", extraRuns: 1, runs: 1,
+      rules: { ...BASE_RULES, wideReball: true },
+    }))
+    expect(ball.isLegal).toBe(false)
+  })
+
+  it("bye is legal", () => {
+    const ball = createBall(makeBallInput({
+      isExtra: true, extraType: "bye", extraRuns: 2, runs: 2,
+    }))
+    expect(ball.isLegal).toBe(true)
+  })
+
+  it("ballInOver counts legal deliveries in same over only", () => {
+    // Two prior legal balls in over 0, so ballInOver should be 2
+    const priorBalls = [
+      makeBall({ overNumber: 0, isLegal: true, deliveryNumber: 0 }),
+      makeBall({ overNumber: 0, isLegal: true, deliveryNumber: 1 }),
+      makeBall({ overNumber: 0, isLegal: false, extraType: "wide", deliveryNumber: 2 }), // wide doesn't count
+    ]
+    const ball = createBall(makeBallInput({ overNumber: 0, deliveryNumber: 3, ballLog: priorBalls }))
+    expect(ball.ballInOver).toBe(2)
+  })
+
+  it("ballInOver resets for a new over", () => {
+    // All prior balls are in over 0
+    const priorBalls = Array.from({ length: 6 }, (_, i) =>
+      makeBall({ overNumber: 0, isLegal: true, deliveryNumber: i })
+    )
+    const ball = createBall(makeBallInput({ overNumber: 1, deliveryNumber: 6, ballLog: priorBalls }))
+    expect(ball.ballInOver).toBe(0)
+  })
+
+  it("generates a unique id", () => {
+    const ball1 = createBall(makeBallInput())
+    const ball2 = createBall(makeBallInput())
+    expect(ball1.id).not.toBe(ball2.id)
+  })
+})
+
+// ─── computeBowlerEntry ───────────────────────────────────────────────────────
+
+describe("computeBowlerEntry", () => {
+  it("returns zeroed entry for bowler with no balls", () => {
+    const entry = computeBowlerEntry("bowl1", "Alice", [], 6)
+    expect(entry.overs).toBe(0)
+    expect(entry.balls).toBe(0)
+    expect(entry.maidens).toBe(0)
+    expect(entry.runs).toBe(0)
+    expect(entry.wickets).toBe(0)
+    expect(entry.economy).toBe(0)
+    expect(entry.dots).toBe(0)
+    expect(entry.wides).toBe(0)
+    expect(entry.noBalls).toBe(0)
+  })
+
+  it("counts 6 dot balls as 1 completed over and 1 maiden", () => {
+    const log = Array.from({ length: 6 }, (_, i) =>
+      makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, runs: 0, deliveryNumber: i })
+    )
+    const entry = computeBowlerEntry("bowl1", "Alice", log, 6)
+    expect(entry.overs).toBe(1)
+    expect(entry.balls).toBe(0)
+    expect(entry.maidens).toBe(1)
+    expect(entry.runs).toBe(0)
+    expect(entry.dots).toBe(6)
+  })
+
+  it("wides and no-balls count against bowler runs but not legal delivery count", () => {
+    const legal = Array.from({ length: 6 }, (_, i) =>
+      makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, runs: 0, deliveryNumber: i })
+    )
+    const wide = makeBall({
+      bowlerId: "bowl1", overNumber: 0, isLegal: false,
+      extraType: "wide", runs: 1, batsmanRuns: 0, extraRuns: 1, isExtra: true, deliveryNumber: 6,
+    })
+    const entry = computeBowlerEntry("bowl1", "Alice", [...legal, wide], 6)
+    expect(entry.wides).toBe(1)
+    expect(entry.runs).toBe(1) // wide counted against bowler
+    expect(entry.overs).toBe(1)
+    expect(entry.maidens).toBe(0) // wide means not maiden
+  })
+
+  it("byes do NOT count against bowler runs", () => {
+    const log = Array.from({ length: 6 }, (_, i) =>
+      makeBall({
+        bowlerId: "bowl1", overNumber: 0, isLegal: true, deliveryNumber: i,
+        runs: 1, batsmanRuns: 0, extraRuns: 1, isExtra: true, extraType: "bye",
+      })
+    )
+    const entry = computeBowlerEntry("bowl1", "Alice", log, 6)
+    expect(entry.runs).toBe(0) // byes don't count
+    expect(entry.maidens).toBe(1) // bye maiden still counts
+  })
+
+  it("counts wickets only for BOWLER_CREDITED dismissal types", () => {
+    const bowled = makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, isWicket: true, dismissalType: "bowled" })
+    const caught = makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, isWicket: true, dismissalType: "caught" })
+    const runOut = makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, isWicket: true, dismissalType: "runOut" })
+    const entry = computeBowlerEntry("bowl1", "Alice", [bowled, caught, runOut], 6)
+    expect(entry.wickets).toBe(2) // run out doesn't credit bowler
+  })
+
+  it("computes economy correctly for a partial over", () => {
+    // 2 runs from 3 legal balls → economy = (2/3)*6 = 4.0
+    const log = [
+      makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, runs: 2, batsmanRuns: 2 }),
+      makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, runs: 0 }),
+      makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, runs: 0 }),
+    ]
+    const entry = computeBowlerEntry("bowl1", "Alice", log, 6)
+    expect(entry.overs).toBe(0)
+    expect(entry.balls).toBe(3)
+    expect(entry.economy).toBeCloseTo(4.0)
+  })
+
+  it("only counts balls from matching bowler", () => {
+    const bowl1Balls = Array.from({ length: 6 }, (_, i) =>
+      makeBall({ bowlerId: "bowl1", overNumber: 0, isLegal: true, runs: 1, deliveryNumber: i })
+    )
+    const bowl2Balls = Array.from({ length: 6 }, (_, i) =>
+      makeBall({ bowlerId: "bowl2", overNumber: 1, isLegal: true, runs: 4, deliveryNumber: i })
+    )
+    const entry = computeBowlerEntry("bowl1", "Alice", [...bowl1Balls, ...bowl2Balls], 6)
+    expect(entry.runs).toBe(6)
+    expect(entry.overs).toBe(1)
+  })
+
+  it("multi-over correctly computes overs + balls remainder", () => {
+    // 14 legal balls = 2 overs + 2 balls
+    const log = Array.from({ length: 14 }, (_, i) =>
+      makeBall({ bowlerId: "bowl1", overNumber: Math.floor(i / 6), isLegal: true, deliveryNumber: i })
+    )
+    const entry = computeBowlerEntry("bowl1", "Alice", log, 6)
+    expect(entry.overs).toBe(2)
+    expect(entry.balls).toBe(2)
   })
 })
