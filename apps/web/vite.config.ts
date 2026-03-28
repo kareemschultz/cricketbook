@@ -7,6 +7,47 @@ import { VitePWA } from "vite-plugin-pwa"
 
 export default defineConfig({
   base: "/scoreflow/",
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replaceAll("\\", "/")
+
+          if (normalizedId.includes("/node_modules/")) {
+            if (/\/node_modules\/(react|react-dom|scheduler)\//.test(normalizedId)) {
+              return "react-vendor"
+            }
+            if (/\/node_modules\/@tanstack\//.test(normalizedId)) {
+              return "router-vendor"
+            }
+            if (/\/node_modules\/(dexie|dexie-react-hooks|zustand)\//.test(normalizedId)) {
+              return "storage-vendor"
+            }
+            if (/\/node_modules\/framer-motion\//.test(normalizedId)) {
+              return "motion-vendor"
+            }
+            if (
+              /\/node_modules\/lucide-react\//.test(normalizedId) ||
+              /\/node_modules\/@hugeicons\//.test(normalizedId)
+            ) {
+              return "icon-vendor"
+            }
+            if (/\/node_modules\/date-fns\//.test(normalizedId)) {
+              return "date-vendor"
+            }
+            if (/\/node_modules\/html2canvas\//.test(normalizedId)) {
+              return "capture-vendor"
+            }
+            return "vendor"
+          }
+
+          if (normalizedId.includes("/packages/ui/")) {
+            return "ui-kit"
+          }
+        },
+      },
+    },
+  },
   plugins: [
     TanStackRouterVite({ target: "react", autoCodeSplitting: true }),
     react(),
