@@ -96,14 +96,27 @@ function ScoringPage() {
     setScoreFlash(type)
   }
 
-  // Redirect if no live match
+  // Auto-load live match from DB when store is cold (e.g. page refresh, Resume Match tap)
+  const { loadMatch } = useScoringStore()
   useEffect(() => {
-    if (!match && !isProcessing) {
-      navigate({ to: "/" })
-    }
-  }, [match, isProcessing, navigate])
+    if (match || isProcessing) return
+    // Store is empty — try to find a live match in Dexie and load it
+    db.matches.where("status").equals("live").first().then((liveMatch) => {
+      if (liveMatch) {
+        loadMatch(liveMatch.id)
+      } else {
+        navigate({ to: "/" })
+      }
+    })
+  }, [match, isProcessing, loadMatch, navigate])
 
-  if (!match) return null
+  if (!match) {
+    return (
+      <div className="min-h-full flex items-center justify-center">
+        <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   const innings = match.innings[currentInningsIndex]
   const rules = match.rules

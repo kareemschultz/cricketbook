@@ -623,8 +623,12 @@ export const useScoringStore = create<ScoringState & ScoringActions>()(
     // ── loadMatch ───────────────────────────────────────────────────────────
 
     loadMatch: async (matchId: string) => {
+      set({ isProcessing: true })
       const match = await db.matches.get(matchId)
-      if (!match) throw new Error(`Match ${matchId} not found in DB`)
+      if (!match) {
+        set({ isProcessing: false })
+        throw new Error(`Match ${matchId} not found in DB`)
+      }
 
       const inningsIndex = match.currentInningsIndex
       const innings = match.innings[inningsIndex]
