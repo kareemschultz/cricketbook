@@ -46,4 +46,30 @@ describe("computeNRR", () => {
     const expected = 100 / (111 / 6) - 100 / (120 / 6)
     expect(nrr).toBeCloseTo(expected, 4)
   })
+
+  it("returns 0 when both teams scored 0 runs", () => {
+    // 0 rpo on each side → 0/x - 0/x = 0
+    expect(computeNRR(0, 5, 0, 5)).toBe(0)
+  })
+
+  it("handles large run totals without error", () => {
+    // 200 runs off 10 balls — extreme but should not throw
+    const nrr = computeNRR(200, 1.4, 10, 20)
+    // 1.4 overs = 1*6+4 = 10 balls → rpo = 200/(10/6) = 120
+    // 20 overs = 120 balls → rpo = 10/(120/6) ≈ 0.5
+    expect(nrr).toBeCloseTo(200 / (10 / 6) - 10 / (120 / 6), 4)
+  })
+
+  it("handles a single-ball over (0.1 = 1 ball)", () => {
+    // 0.1 overs = 1 ball → oversToBalls = 0*6+1 = 1 ball
+    // NRR = 6/(1/6) - 6/(1/6) = 0 (equal rates)
+    expect(computeNRR(6, 0.1, 6, 0.1)).toBeCloseTo(0)
+  })
+
+  it("returns 0 when overs value is 0.0 (zero balls bowled on one side)", () => {
+    // oversAgainst = 0 → oversToBalls returns 0 → function returns 0
+    expect(computeNRR(100, 20, 80, 0)).toBe(0)
+    // oversFor = 0 same case
+    expect(computeNRR(100, 0, 80, 20)).toBe(0)
+  })
 })

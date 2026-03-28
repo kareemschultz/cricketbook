@@ -14,8 +14,9 @@ import {
   getCurrentRunRate,
   buildDismissalText,
   isTied,
+  isInningsComplete,
 } from "./cricket-engine"
-import type { Ball, MatchRules } from "@/types/cricket"
+import type { Ball, Innings, MatchRules } from "@/types/cricket"
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -459,5 +460,116 @@ describe("isTied", () => {
   it("returns false when scores differ", () => {
     expect(isTied(142, 143)).toBe(false)
     expect(isTied(0, 1)).toBe(false)
+  })
+})
+
+// ─── isInningsComplete ────────────────────────────────────────────────────────
+
+function makeInnings(overrides: Partial<Innings> = {}): Innings {
+  return {
+    index: 0,
+    battingTeamId: "t1",
+    bowlingTeamId: "t2",
+    status: "live",
+    totalRuns: 0,
+    totalWickets: 0,
+    totalOvers: 0,
+    totalBalls: 0,
+    totalLegalDeliveries: 0,
+    extras: { wide: 0, noBall: 0, bye: 0, legBye: 0, penalty: 0, total: 0 },
+    battingCard: [],
+    bowlingCard: [],
+    fallOfWickets: [],
+    partnerships: [],
+    ballLog: [],
+    isDeclared: false,
+    ...overrides,
+  }
+}
+
+describe("isInningsComplete", () => {
+  it("returns true when innings is declared", () => {
+    const innings = makeInnings({ isDeclared: true })
+    expect(isInningsComplete(innings, BASE_RULES)).toBe(true)
+  })
+
+  it("returns true when target is reached (chase won)", () => {
+    // target of 150, batting team has 150 — exactly equal = won
+    const innings = makeInnings({ target: 150, totalRuns: 150 })
+    expect(isInningsComplete(innings, BASE_RULES)).toBe(true)
+  })
+
+  it("returns true when target is exceeded (chase won)", () => {
+    const innings = makeInnings({ target: 150, totalRuns: 151 })
+    expect(isInningsComplete(innings, BASE_RULES)).toBe(true)
+  })
+
+  it("returns false when target is set but not yet reached", () => {
+    const innings = makeInnings({ target: 150, totalRuns: 149 })
+    expect(isInningsComplete(innings, BASE_RULES)).toBe(false)
+  })
+
+  it("returns true when all wickets fallen (maxWickets reached)", () => {
+    // BASE_RULES.maxWickets = 10
+    const innings = makeInnings({ totalWickets: 10 })
+    expect(isInningsComplete(innings, BASE_RULES)).toBe(true)
+  })
+
+  it("returns false when wickets fallen but maxWickets not reached", () => {
+    const innings = makeInnings({ totalWickets: 9 })
+    // With lastManStands=false, 9 wickets is not yet complete unless only 1 batsman active
+    // battingCard is empty so no active batsmen — triggers lastManStands path
+    // Let's ensure 2 active batsmen so it stays live
+    const innings2 = makeInnings({
+      totalWickets: 8,
+      battingCard: [
+        { playerId: "b1", playerName: "B1", runs: 0, balls: 0, fours: 0, sixes: 0, dots: 0, isOut: false, isRetiredHurt: false, strikeRate: 0, position: 1 },
+        { playerId: "b2", playerName: "B2", runs: 0, balls: 0, fours: 0, sixes: 0, dots: 0, isOut: false, isRetiredHurt: false, strikeRate: 0, position: 2 },
+      ],
+    })
+    expect(isInningsComplete(innings2, BASE_RULES)).toBe(false)
+  })
+
+  it("returns true for T20-style overs completion (20 overs bowled)", () => {
+    // 20 overs × 6 balls = 120 legal balls
+    const legalBalls = Array.from({ length: 120 }, (_, i) =>
+      makeBall({ overNumber: Math.floor(i / 6), isLegal: true, deliveryNumber: i })
+    )
+    const innings = makeInnings({ ballLog: legalBalls })
+    expect(isInningsComplete(innings, BASE_RULES)).toBe(true)
+  })
+
+  it("returns false when overs are not yet complete", () => {
+    // Only 119 of 120 balls bowled
+    const legalBalls = Array.from({ length: 119 }, (_, i) =>
+      makeBall({ overNumber: Math.floor(i / 6), isLegal: true, deliveryNumber: i })
+    )
+    const innings = makeInnings({ ballLog: legalBalls })
+    expect(isInningsComplete(innings, BASE_RULES)).toBe(false)
+  })
+
+  it("returns false when no completion condition is met (innings still live)", () => {
+    const innings = makeInnings({
+      totalRuns: 50,
+      totalWickets: 3,
+      battingCard: [
+        { playerId: "b1", playerName: "B1", runs: 30, balls: 20, fours: 2, sixes: 0, dots: 5, isOut: false, isRetiredHurt: false, strikeRate: 150, position: 1 },
+        { playerId: "b2", playerName: "B2", runs: 20, balls: 15, fours: 1, sixes: 0, dots: 4, isOut: false, isRetiredHurt: false, strikeRate: 133, position: 2 },
+      ],
+      ballLog: Array.from({ length: 30 }, (_, i) =>
+        makeBall({ overNumber: Math.floor(i / 6), isLegal: true, deliveryNumber: i })
+      ),
+    })
+    expect(isInningsComplete(innings, BASE_RULES)).toBe(false)
+  })
+
+  it("returns false for unlimited-overs match (Test) even when many balls bowled", () => {
+    const testRules: MatchRules = { ...BASE_RULES, oversPerInnings: null }
+    const manyBalls = Array.from({ length: 300 }, (_, i) =>
+      makeBall({ overNumber: Math.floor(i / 6), isLegal: true, deliveryNumber: i })
+    )
+    const innings = makeInnings({ totalWickets: 5, ballLog: manyBalls })
+    // 5 wickets and no over limit — not complete
+    expect(isInningsComplete(innings, testRules)).toBe(false)
   })
 })

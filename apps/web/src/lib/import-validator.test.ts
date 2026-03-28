@@ -152,4 +152,51 @@ describe("validateImportPayload", () => {
     // team[0] id + team[1] name + match[0] format + match[0] status = 4 errors
     expect(errors.length).toBeGreaterThanOrEqual(4)
   })
+
+  // ── edge cases ────────────────────────────────────────────────────────────────
+
+  it("errors on a null value in an array position (not an object)", () => {
+    const errors = validateImportPayload({ teams: [null] })
+    expect(errors).toHaveLength(1)
+    expect(errors[0].table).toBe("teams")
+    expect(errors[0].row).toBe(0)
+    expect(errors[0].issue).toMatch(/row must be an object/)
+  })
+
+  it("accepts a match with innings: [] (empty array is valid)", () => {
+    const errors = validateImportPayload({ matches: [makeMatch({ innings: [] })] })
+    expect(errors).toHaveLength(0)
+  })
+
+  it("accumulates errors only for invalid rows, not entire table", () => {
+    // First row valid, second row invalid — should produce exactly 1 error
+    const payload = {
+      teams: [makeTeam(), makeTeam({ id: "" })],
+    }
+    const errors = validateImportPayload(payload)
+    expect(errors).toHaveLength(1)
+    expect(errors[0].row).toBe(1)
+  })
+
+  it("ignores unknown table keys in the payload (no error)", () => {
+    const payload = {
+      unknownTable: [{ id: "x", name: "y" }],
+      anotherUnknown: "some value",
+      teams: [makeTeam()],
+    }
+    const errors = validateImportPayload(payload as Record<string, unknown>)
+    expect(errors).toHaveLength(0)
+  })
+
+  it("errors when a numeric value appears instead of an array row", () => {
+    const errors = validateImportPayload({ players: [42] })
+    expect(errors).toHaveLength(1)
+    expect(errors[0].issue).toMatch(/row must be an object/)
+  })
+
+  it("errors when an array value appears instead of an array row", () => {
+    const errors = validateImportPayload({ players: [[{ id: "nested" }]] })
+    expect(errors).toHaveLength(1)
+    expect(errors[0].issue).toMatch(/row must be an object/)
+  })
 })
