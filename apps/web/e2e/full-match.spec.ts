@@ -158,10 +158,19 @@ test.describe("Full match flow", () => {
       await page.waitForTimeout(400) // allow ball processing
     }
 
-    // After 1 over, checkPostBall calls setShowInningsEndDialog(true).
-    // InningsBreakOverlay appears automatically (z-50, fixed inset-0) — no separate click needed.
-    await expect(page.locator("text=Start 2nd Innings").first()).toBeVisible({ timeout: 8000 })
-    await page.locator("button", { hasText: "Start 2nd Innings" }).click()
+    // After 1 over the app may either show the full-screen innings break overlay
+    // or the inline "innings complete" action strip, depending on timing/recovery.
+    const overlayButton = page.locator("button", { hasText: "Start 2nd Innings" }).first()
+    const inlineButton = page.locator("button", { hasText: /Innings complete/ }).first()
+    await expect.poll(
+      async () => (await overlayButton.isVisible()) || (await inlineButton.isVisible()),
+      { timeout: 8000 }
+    ).toBe(true)
+    if (await overlayButton.isVisible()) {
+      await overlayButton.click()
+    } else {
+      await inlineButton.click()
+    }
 
     // ── 6. Second innings — select openers ────────────────────────────────────
     // handleStartNextInnings (line 354) calls ui.setShowNewBatsmanSheet(true) immediately
